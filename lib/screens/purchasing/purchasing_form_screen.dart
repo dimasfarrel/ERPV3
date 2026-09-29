@@ -165,11 +165,10 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
       child: Column(children: [
         // Header fields - 3 columns
         ErpCard(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Column 1
-              Expanded(child: Column(children: [
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 650;
+              final col1 = Column(children: [
                 _buildF3Search('Partner [F3]', initial: _selectedVendor, options: _vendors),
                 const SizedBox(height: 12),
                 _buildF3Search('Induk [F3]', initial: _indukCtrl.text),
@@ -181,26 +180,39 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
                   const SizedBox(width: 8),
                   SizedBox(width: 70, child: TextField(controller: _tempoValCtrl, textAlign: TextAlign.center, decoration: _inputDeco('30'))),
                 ])),
-              ])),
-              const SizedBox(width: 20),
-              // Column 2
-              Expanded(child: Column(children: [
+              ]);
+
+              final col2 = Column(children: [
                 _overlayField('Tgl. Input', child: TextField(controller: _dateCtrl, decoration: _inputDeco('YYYY-MM-DD'))),
                 const SizedBox(height: 12),
                 _overlayField('Tgl. Kirim', child: TextField(controller: _shipDateCtrl, decoration: _inputDeco('YYYY-MM-DD'))),
                 const SizedBox(height: 12),
                 _overlayField('Tgl. Jatem', child: TextField(controller: _dueDateCtrl, decoration: _inputDeco('YYYY-MM-DD'))),
-              ])),
-              const SizedBox(width: 20),
-              // Column 3
-              Expanded(child: Column(children: [
+              ]);
+
+              final col3 = Column(children: [
                 _overlayField('Keterangan', child: TextField(controller: _keteranganCtrl, decoration: _inputDeco('Keterangan atas dokumen...'))),
                 const SizedBox(height: 12),
                 _overlayField('Nomor Nota', child: TextField(controller: _nomorNotaCtrl, decoration: _inputDeco('PO-XXXX-XXX'))),
                 const SizedBox(height: 12),
                 _buildF3Search('Gudang [F3]', initial: _selectedWarehouse, options: _warehouses),
-              ])),
-            ],
+              ]);
+
+              if (isMobile) {
+                return Column(children: [col1, const SizedBox(height: 12), col2, const SizedBox(height: 12), col3]);
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: col1),
+                  const SizedBox(width: 20),
+                  Expanded(child: col2),
+                  const SizedBox(width: 20),
+                  Expanded(child: col3),
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 14),
@@ -209,11 +221,16 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
           padding: EdgeInsets.zero,
           child: Column(children: [
             // Table header
-            Container(
-              decoration: const BoxDecoration(
-                color: AppColors.bgApp,
-                borderRadius: BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
-              ),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: 900, // min width to prevent squishing
+                child: Column(children: [
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: AppColors.bgApp,
+                      borderRadius: BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
+                    ),
               child: Table(
                 columnWidths: const {
                   0: FlexColumnWidth(2.5),
@@ -252,31 +269,30 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
                   Text('+ Tambah Baris Produk', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
                 ]),
               ),
+                ]),
+              ),
             ),
           ]),
         ),
         const SizedBox(height: 14),
         // Calc + Notes
         ErpCard(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Notes
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Catatan Faktur', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _notesCtrl,
-                    maxLines: 4,
-                    decoration: _inputDeco('Catatan atau memo pengiriman...'),
-                  ),
-                ]),
-              ),
-              const SizedBox(width: 40),
-              // Calculation summary
-              SizedBox(
-                width: 320,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 600;
+              
+              final notes = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Catatan Faktur', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _notesCtrl,
+                  maxLines: 4,
+                  decoration: _inputDeco('Catatan atau memo pengiriman...'),
+                ),
+              ]);
+              
+              final calc = SizedBox(
+                width: isMobile ? double.infinity : 320,
                 child: Column(children: [
                   _calcRow('Subtotal:', Formatters.currency(_subtotal), bold: false),
                   const SizedBox(height: 6),
@@ -284,8 +300,27 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
                   const Divider(height: 20),
                   _calcRow('Total Tagihan:', Formatters.currency(_grandTotal), bold: true, color: AppColors.primary),
                 ]),
-              ),
-            ],
+              );
+              
+              if (isMobile) {
+                return Column(
+                  children: [
+                    notes,
+                    const SizedBox(height: 20),
+                    calc,
+                  ],
+                );
+              }
+              
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: notes),
+                  const SizedBox(width: 40),
+                  calc,
+                ],
+              );
+            },
           ),
         ),
       ]),
