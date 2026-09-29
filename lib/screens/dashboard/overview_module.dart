@@ -22,7 +22,7 @@ class OverviewModule extends StatelessWidget {
         children: [
           _buildPageHeader(context),
           const SizedBox(height: 20),
-          _buildKpiGrid(),
+          _buildKpiGrid(context),
           const SizedBox(height: 20),
           _buildChartsRow(context, provider),
           const SizedBox(height: 20),
@@ -33,38 +33,47 @@ class OverviewModule extends StatelessWidget {
   }
 
   Widget _buildPageHeader(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Expanded(
+        SizedBox(
+          width: 400,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Dashboard Operasional & Finansial', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.secondary)),
-              Text('Ringkasan performa real-time rantai pasok dan aktivitas bisnis per 19 September 2026',
+              Text('Ringkasan performa real-time rantai pasok dan aktivitas bisnis',
                 style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted)),
             ],
           ),
         ),
-        const SizedBox(width: 16),
-        ElevatedButton.icon(
-          onPressed: () => context.read<AppProvider>().switchModule('sales'),
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('+ Penjualan Baru'),
-          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton(
-          onPressed: () => context.read<AppProvider>().switchModule('purchasing'),
-          child: const Text('+ Pembelian Baru'),
-          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ElevatedButton.icon(
+              onPressed: () => context.read<AppProvider>().switchModule('sales'),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('+ Penjualan Baru'),
+              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+            ),
+            OutlinedButton(
+              onPressed: () => context.read<AppProvider>().switchModule('purchasing'),
+              child: const Text('+ Pembelian Baru'),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildKpiGrid() {
+  Widget _buildKpiGrid(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return GridView.count(
-      crossAxisCount: 4,
+      crossAxisCount: isMobile ? 1 : 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 16,
@@ -80,6 +89,18 @@ class OverviewModule extends StatelessWidget {
   }
 
   Widget _buildChartsRow(BuildContext context, AppProvider provider) {
+    final isMobile = MediaQuery.of(context).size.width < 800;
+    
+    if (isMobile) {
+      return Column(
+        children: [
+          _buildBarChart(),
+          const SizedBox(height: 16),
+          _buildWarehouseCapacity(provider),
+        ],
+      );
+    }
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
