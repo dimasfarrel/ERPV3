@@ -80,10 +80,10 @@ class OverviewModule extends StatelessWidget {
       mainAxisSpacing: 16,
       childAspectRatio: 1.8,
       children: const [
-        KpiCard(title: 'Total Penjualan (Bulan Ini)', value: 'Rp 842,5 Jt', trend: '▲ +14.2%', trendLabel: 'vs bulan sebelumnya', trendUp: true, emoji: '💰', iconColor: AppColors.primary),
-        KpiCard(title: 'Total Nilai Valuasi Stok', value: 'Rp 1,48 M', trend: '▲ +3.8%', trendLabel: '12.450 unit item', trendUp: true, emoji: '📦', iconColor: AppColors.success),
-        KpiCard(title: 'Purchase Order Pending', value: '8 Pesanan', trend: '● 2 Butuh Otorisasi', trendLabel: 'Total Rp 310 Juta', trendUp: false, emoji: '⏳', iconColor: AppColors.warning),
-        KpiCard(title: 'Peringatan Minimum Stok', value: '4 SKU Kritis', trend: 'Segera Restock', trendLabel: 'Gudang Kepanjen', trendUp: false, emoji: '⚠️', iconColor: Color(0xFF8B5CF6)),
+        KpiCard(title: 'Total Penjualan (Bulan Ini)', value: 'Rp 842,5 Jt', trend: '14.2%', trendLabel: 'vs bulan sebelumnya', trendUp: true, icon: Icons.monetization_on_outlined, iconColor: AppColors.primary),
+        KpiCard(title: 'Total Nilai Valuasi Stok', value: 'Rp 1,48 M', trend: '3.8%', trendLabel: '12.450 unit item', trendUp: true, icon: Icons.inventory_2_outlined, iconColor: AppColors.success),
+        KpiCard(title: 'Purchase Order Pending', value: '8 Pesanan', trend: '2 Butuh Otorisasi', trendLabel: 'Total Rp 310 Juta', trendUp: false, icon: Icons.pending_actions_outlined, iconColor: AppColors.warning),
+        KpiCard(title: 'Peringatan Minimum Stok', value: '4 SKU Kritis', trend: 'Segera Restock', trendLabel: 'Gudang Kepanjen', trendUp: false, icon: Icons.warning_amber_outlined, iconColor: Color(0xFF8B5CF6)),
       ],
     );
   }

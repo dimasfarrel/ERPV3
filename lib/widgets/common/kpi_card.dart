@@ -9,7 +9,7 @@ class KpiCard extends StatelessWidget {
   final String trend;
   final String trendLabel;
   final bool trendUp;
-  final String emoji;
+  final IconData icon;
   final Color iconColor;
 
   const KpiCard({
@@ -19,7 +19,7 @@ class KpiCard extends StatelessWidget {
     required this.trend,
     required this.trendLabel,
     required this.trendUp,
-    required this.emoji,
+    required this.icon,
     required this.iconColor,
   });
 
@@ -41,7 +41,7 @@ class KpiCard extends StatelessWidget {
                   color: iconColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
+                child: Center(child: Icon(icon, color: iconColor, size: 20)),
               ),
             ],
           ),
@@ -50,6 +50,12 @@ class KpiCard extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
+              Icon(
+                trendUp ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 14,
+                color: trendUp ? AppColors.success : AppColors.danger,
+              ),
+              const SizedBox(width: 4),
               Text(
                 trend,
                 style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: trendUp ? AppColors.success : AppColors.danger),
