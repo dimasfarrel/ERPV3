@@ -20,55 +20,65 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
+    final isMobile = MediaQuery.of(context).size.width < 900;
 
     return Scaffold(
-      body: Row(
-        children: [
-          if (provider.isSidebarOpen) const ErpSidebar(),
-          Expanded(
-            child: Column(
-              children: [
-                _buildTopbar(context, provider),
-                _buildTabBar(context, provider),
-                Expanded(
-                  child: Container(
-                    color: AppColors.bgApp,
-                    child: _buildCurrentModule(provider, provider.activeModule),
+      drawer: isMobile ? const Drawer(child: ErpSidebar()) : null,
+      body: Builder(
+        builder: (context) => Row(
+          children: [
+            if (!isMobile && provider.isSidebarOpen) const ErpSidebar(),
+            Expanded(
+              child: Column(
+                children: [
+                  _buildTopbar(context, provider, isMobile),
+                  _buildTabBar(context, provider),
+                  Expanded(
+                    child: Container(
+                      color: AppColors.bgApp,
+                      child: _buildCurrentModule(provider, provider.activeModule),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildTopbar(BuildContext context, AppProvider provider) {
+  Widget _buildTopbar(BuildContext context, AppProvider provider, bool isMobile) {
     final biz = provider.selectedBusiness?.name ?? 'PT Malang Manufaktur';
     final cc = provider.selectedCostCenter?.code ?? 'CC-PROD';
     final wh = provider.selectedWarehouse?.name ?? 'Gudang Utama Malang';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              if (isMobile) {
+                Scaffold.of(context).openDrawer();
+              } else {
+                provider.toggleSidebar();
+              }
+            },
+            color: AppColors.secondary,
+            tooltip: 'Toggle Sidebar',
+          ),
+          const SizedBox(width: 8),
           // Context Tags
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(children: [
-                IconButton(
-                  icon: const Icon(Icons.menu),
-                  onPressed: () => provider.toggleSidebar(),
-                  color: AppColors.secondary,
-                  tooltip: 'Toggle Sidebar',
-                ),
-                const SizedBox(width: 8),
                 _contextTag(Icons.home_outlined, biz, () => provider.navigateTo(AppView.business)),
                 const SizedBox(width: 8),
                 _contextTag(Icons.business_center_outlined, cc, () => provider.navigateTo(AppView.costCenter)),
@@ -77,27 +87,28 @@ class DashboardScreen extends StatelessWidget {
               ]),
             ),
           ),
-          const SizedBox(width: 16),
-          // Search
-          SizedBox(
-            width: 280,
-            child: TextField(
-              onChanged: provider.setSearch,
-              decoration: InputDecoration(
-                hintText: 'Cari SKU, faktur, pelanggan...',
-                prefixIcon: const Icon(Icons.search, size: 18),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                isDense: true,
+          if (!isMobile) ...[
+            const SizedBox(width: 16),
+            SizedBox(
+              width: 280,
+              child: TextField(
+                onChanged: provider.setSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Cari SKU, faktur, pelanggan...',
+                  prefixIcon: Icon(Icons.search, size: 18),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  isDense: true,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            onPressed: () => provider.openNewForm('sales'),
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('+ Buat Transaksi'),
-            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10)),
-          ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => provider.openNewForm('sales'),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('+ Buat Transaksi'),
+              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10)),
+            ),
+          ],
         ],
       ),
     );
