@@ -24,7 +24,7 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       body: Row(
         children: [
-          const ErpSidebar(),
+          if (provider.isSidebarOpen) const ErpSidebar(),
           Expanded(
             child: Column(
               children: [
@@ -62,6 +62,13 @@ class DashboardScreen extends StatelessWidget {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(children: [
+                IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () => provider.toggleSidebar(),
+                  color: AppColors.textMain,
+                  tooltip: 'Toggle Sidebar',
+                ),
+                const SizedBox(width: 8),
                 _contextTag(Icons.home_outlined, biz, () => provider.navigateTo(AppView.business)),
                 const SizedBox(width: 8),
                 _contextTag(Icons.business_center_outlined, cc, () => provider.navigateTo(AppView.costCenter)),

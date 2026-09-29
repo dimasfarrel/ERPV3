@@ -8,6 +8,7 @@ class AppProvider extends ChangeNotifier {
   String _activeModule = 'overview';
   bool _isLoading = false;
   String _searchQuery = '';
+  bool _isSidebarOpen = true;
 
   // Auth state
   bool _isLoggedIn = false;
@@ -31,6 +32,7 @@ class AppProvider extends ChangeNotifier {
   String get activeModule => _activeModule;
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
+  bool get isSidebarOpen => _isSidebarOpen;
   bool get isLoggedIn => _isLoggedIn;
   String get username => _username;
   String get userDatabase => _userDatabase;
@@ -217,6 +219,11 @@ class AppProvider extends ChangeNotifier {
 
   void setSearch(String q) {
     _searchQuery = q;
+    notifyListeners();
+  }
+
+  void toggleSidebar() {
+    _isSidebarOpen = !_isSidebarOpen;
     notifyListeners();
   }
 
