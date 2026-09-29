@@ -65,7 +65,7 @@ class DashboardScreen extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.menu),
                   onPressed: () => provider.toggleSidebar(),
-                  color: AppColors.textMain,
+                  color: AppColors.secondary,
                   tooltip: 'Toggle Sidebar',
                 ),
                 const SizedBox(width: 8),
