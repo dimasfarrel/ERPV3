@@ -224,51 +224,44 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SizedBox(
-                width: 900, // min width to prevent squishing
+                width: 900,
                 child: Column(children: [
                   Container(
                     decoration: const BoxDecoration(
                       color: AppColors.bgApp,
                       borderRadius: BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
                     ),
-              child: Table(
-                columnWidths: const {
-                  0: FlexColumnWidth(2.5),
-                  1: FlexColumnWidth(2),
-                  2: FlexColumnWidth(1),
-                  3: FlexColumnWidth(1),
-                  4: FlexColumnWidth(1.8),
-                  5: FlexColumnWidth(1),
-                  6: FlexColumnWidth(1),
-                  7: FlexColumnWidth(1.8),
-                  8: FlexColumnWidth(0.5),
-                },
-                children: [
-                  TableRow(children: [
-                    _thCell('Produk'), _thCell('Deskripsi'), _thCell('Qty'), _thCell('Unit'),
-                    _thCell('Harga Satuan'), _thCell('Diskon'), _thCell('Pajak'), _thCell('Jumlah'), _thCell(''),
-                  ]),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            // Item rows
-            ..._items.asMap().entries.map((e) => _buildItemRow(e.key, e.value)),
-            // Add row button
-            InkWell(
-              onTap: () => setState(() => _items.add(_LineItem())),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.borderLight, style: BorderStyle.solid),
-                  borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.add, size: 16, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Text('+ Tambah Baris Produk', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
-                ]),
-              ),
+                    child: Table(
+                      columnWidths: const {
+                        0: FlexColumnWidth(2.5), 1: FlexColumnWidth(2), 2: FlexColumnWidth(1),
+                        3: FlexColumnWidth(1), 4: FlexColumnWidth(1.8), 5: FlexColumnWidth(1),
+                        6: FlexColumnWidth(1), 7: FlexColumnWidth(1.8), 8: FlexColumnWidth(0.5),
+                      },
+                      children: [
+                        TableRow(children: [
+                          _thCell('Produk'), _thCell('Deskripsi'), _thCell('Qty'), _thCell('Unit'),
+                          _thCell('Harga Satuan'), _thCell('Diskon'), _thCell('Pajak'), _thCell('Jumlah'), _thCell(''),
+                        ]),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  ..._items.asMap().entries.map((e) => _buildItemRow(e.key, e.value)),
+                  InkWell(
+                    onTap: () => setState(() => _items.add(_LineItem())),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.borderLight, style: BorderStyle.solid),
+                        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.add, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text('+ Tambah Baris Produk', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                      ]),
+                    ),
+                  ),
                 ]),
               ),
             ),
