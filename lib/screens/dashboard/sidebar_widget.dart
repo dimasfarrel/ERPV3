@@ -13,7 +13,7 @@ class ErpSidebar extends StatelessWidget {
 
     return Container(
       width: 240,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: AppColors.sidebarGradient,
         boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(4, 0))],
       ),

@@ -446,7 +446,7 @@ class _ThemeTabState extends State<_ThemeTab> {
               const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('Preferensi tema berhasil disimpan (Visual Preview)'),
                     backgroundColor: AppColors.success,
                     behavior: SnackBarBehavior.floating,

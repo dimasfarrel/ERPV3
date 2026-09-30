@@ -79,7 +79,7 @@ class OverviewModule extends StatelessWidget {
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
       childAspectRatio: 1.8,
-      children: const [
+      children: [
         KpiCard(title: 'Total Penjualan (Bulan Ini)', value: 'Rp 842,5 Jt', trend: '14.2%', trendLabel: 'vs bulan sebelumnya', trendUp: true, icon: Icons.monetization_on_outlined, iconColor: AppColors.primary),
         KpiCard(title: 'Total Nilai Valuasi Stok', value: 'Rp 1,48 M', trend: '3.8%', trendLabel: '12.450 unit item', trendUp: true, icon: Icons.inventory_2_outlined, iconColor: AppColors.success),
         KpiCard(title: 'Purchase Order Pending', value: '8 Pesanan', trend: '2 Butuh Otorisasi', trendLabel: 'Total Rp 310 Juta', trendUp: false, icon: Icons.pending_actions_outlined, iconColor: AppColors.warning),

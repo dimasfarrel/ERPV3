@@ -227,7 +227,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                 width: 900,
                 child: Column(children: [
                   Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.bgApp,
                       borderRadius: BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
                     ),
@@ -454,7 +454,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
   Widget _buildFooterBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.borderLight)),
         boxShadow: [BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -4))],

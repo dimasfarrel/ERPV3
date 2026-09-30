@@ -26,7 +26,7 @@ class ReportsModule extends StatelessWidget {
           crossAxisCount: 4, shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 1.8,
-          children: const [
+          children: [
             KpiCard(title: 'Margin Bersih', value: '30.8%', trend: '2.1%', trendLabel: 'vs Q2 2026', trendUp: true, icon: Icons.analytics_outlined, iconColor: AppColors.primary),
             KpiCard(title: 'Perputaran Stok', value: '8.4x / Tahun', trend: '0.6x', trendLabel: 'Target 10x', trendUp: true, icon: Icons.sync_alt_outlined, iconColor: AppColors.success),
             KpiCard(title: 'DSO (Days Sales Outstanding)', value: '28 Hari', trend: '3 Hari', trendLabel: 'vs bulan lalu', trendUp: false, icon: Icons.calendar_month_outlined, iconColor: AppColors.warning),

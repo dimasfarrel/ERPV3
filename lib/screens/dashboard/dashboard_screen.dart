@@ -55,7 +55,7 @@ class DashboardScreen extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: AppColors.borderLight)),
       ),
@@ -148,7 +148,7 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildTabBar(BuildContext context, AppProvider provider) {
     return Container(
       height: 44,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgApp,
         border: Border(bottom: BorderSide(color: AppColors.borderLight)),
       ),
