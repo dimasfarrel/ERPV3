@@ -102,7 +102,8 @@ class AppProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         _isLoggedIn = true;
         _username = username;
-        _currentView = AppView.business;
+        // Skip selection screens sementara karena datanya kosong, langsung tembak ke dashboard
+        _currentView = AppView.dashboard;
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
