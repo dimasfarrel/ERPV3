@@ -27,10 +27,10 @@ class ReportsModule extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 1.8,
           children: [
-            KpiCard(title: 'Margin Bersih', value: '30.8%', trend: '2.1%', trendLabel: 'vs Q2 2026', trendUp: true, icon: Icons.analytics_outlined, iconColor: AppColors.primary),
-            KpiCard(title: 'Perputaran Stok', value: '8.4x / Tahun', trend: '0.6x', trendLabel: 'Target 10x', trendUp: true, icon: Icons.sync_alt_outlined, iconColor: AppColors.success),
-            KpiCard(title: 'DSO (Days Sales Outstanding)', value: '28 Hari', trend: '3 Hari', trendLabel: 'vs bulan lalu', trendUp: false, icon: Icons.calendar_month_outlined, iconColor: AppColors.warning),
-            KpiCard(title: 'Total Revenue YTD', value: 'Rp 6.4 M', trend: '18.5%', trendLabel: 'vs target', trendUp: true, icon: Icons.diamond_outlined, iconColor: Color(0xFF8B5CF6)),
+            KpiCard(title: 'Margin Bersih', value: '0%', trend: '0%', trendLabel: '-', trendUp: true, icon: Icons.analytics_outlined, iconColor: AppColors.primary),
+            KpiCard(title: 'Perputaran Stok', value: '0x', trend: '0x', trendLabel: '-', trendUp: true, icon: Icons.sync_alt_outlined, iconColor: AppColors.success),
+            KpiCard(title: 'DSO (Days Sales Outstanding)', value: '0 Hari', trend: '0 Hari', trendLabel: '-', trendUp: false, icon: Icons.calendar_month_outlined, iconColor: AppColors.warning),
+            KpiCard(title: 'Total Revenue YTD', value: 'Rp 0', trend: '0%', trendLabel: '-', trendUp: true, icon: Icons.diamond_outlined, iconColor: Color(0xFF8B5CF6)),
           ],
         ),
         const SizedBox(height: 20),
@@ -64,8 +64,8 @@ class ReportsModule extends StatelessWidget {
   }
 
   Widget _buildRevenueChart() {
-    final sales = [45.0, 55.0, 60.0, 70.0, 75.0, 68.0, 80.0, 88.0, 95.0];
-    final expenses = [30.0, 35.0, 38.0, 42.0, 48.0, 44.0, 50.0, 55.0, 60.0];
+    final sales = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    final expenses = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep'];
 
     return ErpCard(
@@ -107,13 +107,7 @@ class ReportsModule extends StatelessWidget {
   }
 
   Widget _buildTopCustomers() {
-    final customers = [
-      ('PT Surya Gemilang Kencana', 'Rp 182 Jt', 0.82, AppColors.primary),
-      ('PT Bintang Mitra Sejahtera', 'Rp 145 Jt', 0.65, AppColors.primary),
-      ('CV Cipta Karya Mandiri', 'Rp 98 Jt', 0.44, AppColors.success),
-      ('Toko Makmur Sentosa', 'Rp 67 Jt', 0.30, AppColors.warning),
-      ('UD Sumber Rezeki', 'Rp 45 Jt', 0.20, AppColors.textMuted),
-    ];
+    final customers = <(String, String, double, Color)>[];
     return ErpCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Top 5 Pelanggan Terbesar', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
@@ -137,11 +131,7 @@ class ReportsModule extends StatelessWidget {
   }
 
   Widget _buildMonthlySummary() {
-    final rows = [
-      ('Sep 2026', 'Rp 842.500.000', 'Rp 521.350.000', 'Rp 321.150.000', 'Rp 61.200.000', 'Rp 259.950.000', '30.8%'),
-      ('Agu 2026', 'Rp 784.000.000', 'Rp 489.500.000', 'Rp 294.500.000', 'Rp 58.000.000', 'Rp 236.500.000', '30.2%'),
-      ('Jul 2026', 'Rp 710.000.000', 'Rp 448.300.000', 'Rp 261.700.000', 'Rp 55.000.000', 'Rp 206.700.000', '29.1%'),
-    ];
+    final rows = <(String, String, String, String, String, String, String)>[];
     return ErpCard(
       padding: EdgeInsets.zero,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -6,6 +6,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/providers/app_provider.dart';
 import '../../widgets/common/erp_card.dart';
 import '../../widgets/common/status_badge.dart';
+import '../../widgets/common/kpi_card.dart';
 
 class AccountingModule extends StatefulWidget {
   const AccountingModule({super.key});
@@ -31,9 +32,9 @@ class _AccountingModuleState extends State<AccountingModule> {
         LayoutBuilder(
           builder: (context, constraints) {
             final isSmallScreen = constraints.maxWidth < 800;
-            final card1 = _metricCard('Kas & Setara Kas', 'Rp 1,24 M', 'Saldo akhir periode', AppColors.primary, '↑');
-            final card2 = _metricCard('Total Pendapatan', 'Rp 842 Jt', 'Bulan September 2026', AppColors.success, '↑');
-            final card3 = _metricCard('Total Beban', 'Rp 583 Jt', 'Termasuk HPP & Operasional', AppColors.warning, '!');
+            final card1 = KpiCard(title: 'Kas & Setara Kas', value: 'Rp 0', trend: '0', trendLabel: '-', trendUp: true, icon: Icons.account_balance_wallet_outlined, iconColor: AppColors.primary);
+            final card2 = KpiCard(title: 'Total Pendapatan', value: 'Rp 0', trend: '0', trendLabel: '-', trendUp: true, icon: Icons.trending_up_outlined, iconColor: AppColors.success);
+            final card3 = KpiCard(title: 'Total Beban', value: 'Rp 0', trend: '0', trendLabel: '-', trendUp: false, icon: Icons.money_off_outlined, iconColor: AppColors.warning);
 
             if (isSmallScreen) {
               return Column(
@@ -125,29 +126,5 @@ class _AccountingModuleState extends State<AccountingModule> {
     );
   }
 
-  Widget _metricCard(String title, String amount, String sub, Color color, String badge) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border(top: BorderSide(color: color, width: 3), left: BorderSide(color: AppColors.borderLight), right: BorderSide(color: AppColors.borderLight), bottom: BorderSide(color: AppColors.borderLight)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
-      ),
-      child: Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text(title, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
-          const SizedBox(height: 8),
-          Text(amount, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.secondary)),
-          const SizedBox(height: 4),
-          Text(sub, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted)),
-        ])),
-        Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
-          child: Center(child: Text(badge, style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w700))),
-        ),
-      ]),
-    );
-  }
+
 }
