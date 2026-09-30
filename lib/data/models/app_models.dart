@@ -30,12 +30,21 @@ class BusinessEntity {
   BusinessEntity({
     required this.id,
     required this.name,
-    required this.code,
-    required this.description,
-    required this.icon,
-    required this.category,
-    required this.activeProjects,
+    this.code = '',
+    this.description = '',
+    this.icon = '🏢',
+    this.category = 'Umum',
+    this.activeProjects = '',
   });
+
+  factory BusinessEntity.fromJson(Map<String, dynamic> json) {
+    return BusinessEntity(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      code: json['code'] ?? '-',
+      description: json['description'] ?? 'Entitas bisnis terdaftar',
+    );
+  }
 }
 
 class CostCenter {

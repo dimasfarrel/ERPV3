@@ -100,10 +100,26 @@ class AppProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
+        final respData = response.data['data'] ?? {};
+        
         _isLoggedIn = true;
-        _username = username;
-        // Skip selection screens sementara karena datanya kosong, langsung tembak ke dashboard
-        _currentView = AppView.dashboard;
+        _username = respData['user']?['username'] ?? username;
+
+        // Parse business list if available
+        if (respData['business'] != null && respData['business'] is List) {
+          businessEntities = (respData['business'] as List)
+              .map((b) => BusinessEntity.fromJson(b))
+              .toList();
+        }
+
+        // Check if user needs to select a business
+        final requiresBusiness = respData['requires_business'] ?? false;
+        
+        if (requiresBusiness && businessEntities.isNotEmpty) {
+          _currentView = AppView.business; // Go to business selection screen
+        } else {
+          _currentView = AppView.dashboard; // Skip selection
+        }
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
