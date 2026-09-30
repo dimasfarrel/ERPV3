@@ -280,7 +280,7 @@ class _SalesModuleState extends State<SalesModule> {
               DataCell(Text(Formatters.currency(inv.amount), style: const TextStyle(fontWeight: FontWeight.w700))),
               DataCell(StatusBadge(label: inv.status, type: inv.statusBadge)),
               DataCell(Row(children: [
-                IconButton(icon: const Icon(Icons.visibility_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                IconButton(icon: Icon(Icons.visibility_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
                 IconButton(icon: const Icon(Icons.edit_outlined, size: 16),
                   onPressed: () => setState(() => _showForm = true), color: AppColors.textMuted),
               ])),

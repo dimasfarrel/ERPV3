@@ -147,7 +147,7 @@ class ErpSidebar extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.sidebarText),
+            icon: Icon(Icons.logout_rounded, size: 18, color: AppColors.sidebarText),
             onPressed: () {
               showDialog(
                 context: context,

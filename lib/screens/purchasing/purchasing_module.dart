@@ -250,8 +250,8 @@ class _PurchasingModuleState extends State<PurchasingModule> {
                 DataCell(Text(Formatters.currency(po.amount), style: const TextStyle(fontWeight: FontWeight.w700))),
                 DataCell(StatusBadge(label: po.status, type: po.statusBadge)),
                 DataCell(Row(children: [
-                  IconButton(icon: const Icon(Icons.visibility_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
-                  IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                  IconButton(icon: Icon(Icons.visibility_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                  IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
                 ])),
               ])).toList(),
             ),

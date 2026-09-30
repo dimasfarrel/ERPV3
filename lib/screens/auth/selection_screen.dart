@@ -50,7 +50,7 @@ class _SelectionScreenState extends State<SelectionScreen> with TickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.bgGradient),
+        decoration: BoxDecoration(gradient: AppColors.bgGradient),
         child: Stack(
           children: [
             Positioned(top: -100, right: -80, child: _blob(400, AppColors.primary.withOpacity(0.07))),

@@ -10,6 +10,10 @@ class AppProvider extends ChangeNotifier {
   String _searchQuery = '';
   bool _isSidebarOpen = true;
 
+  // Theme state
+  bool _isDarkMode = false;
+  Color _primaryColor = const Color(0xFF194BFB);
+
   // Auth state
   bool _isLoggedIn = false;
   String _username = 'admin_malang';
@@ -40,6 +44,8 @@ class AppProvider extends ChangeNotifier {
   CostCenter? get selectedCostCenter => _selectedCostCenter;
   WarehouseEntity? get selectedWarehouse => _selectedWarehouse;
   List<Map<String, String>> get openTabs => _openTabs;
+  bool get isDarkMode => _isDarkMode;
+  Color get primaryColor => _primaryColor;
 
   // ==================== Mock Data ====================
 
@@ -224,6 +230,18 @@ class AppProvider extends ChangeNotifier {
 
   void toggleSidebar() {
     _isSidebarOpen = !_isSidebarOpen;
+    notifyListeners();
+  }
+
+  void setThemeMode(bool isDark) {
+    _isDarkMode = isDark;
+    AppColors.updateThemeMode(isDark);
+    notifyListeners();
+  }
+
+  void setPrimaryColor(Color color) {
+    _primaryColor = color;
+    AppColors.updatePrimaryColor(color);
     notifyListeners();
   }
 

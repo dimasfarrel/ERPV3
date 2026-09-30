@@ -23,6 +23,7 @@ class ErpMalangApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
     return MaterialApp(
       title: 'ERP Malang - Enterprise Suite',
       debugShowCheckedModeBanner: false,

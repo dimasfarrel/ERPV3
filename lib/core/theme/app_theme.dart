@@ -2,48 +2,77 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // Primary brand color (matching web: #194bfb)
-  static const Color primary = Color(0xFF194BFB);
-  static const Color primaryLight = Color(0xFF4169FC);
-  static const Color primaryDark = Color(0xFF0E36D9);
-  static const Color primarySurface = Color(0xFFEEF2FF);
+  // Primary brand color
+  static Color primary = const Color(0xFF194BFB);
+  static Color primaryLight = const Color(0xFF4169FC);
+  static Color primaryDark = const Color(0xFF0E36D9);
+  static Color primarySurface = const Color(0xFFEEF2FF);
 
   // Semantic colors
-  static const Color success = Color(0xFF10B981);
-  static const Color successSurface = Color(0xFFD1FAE5);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color warningSurface = Color(0xFFFEF3C7);
-  static const Color danger = Color(0xFFEF4444);
-  static const Color dangerSurface = Color(0xFFFEE2E2);
-  static const Color info = Color(0xFF3B82F6);
-  static const Color infoSurface = Color(0xFFDBEAFE);
+  static Color success = const Color(0xFF10B981);
+  static Color successSurface = const Color(0xFFD1FAE5);
+  static Color warning = const Color(0xFFF59E0B);
+  static Color warningSurface = const Color(0xFFFEF3C7);
+  static Color danger = const Color(0xFFEF4444);
+  static Color dangerSurface = const Color(0xFFFEE2E2);
+  static Color info = const Color(0xFF3B82F6);
+  static Color infoSurface = const Color(0xFFDBEAFE);
 
   // Neutral
-  static const Color secondary = Color(0xFF1E293B);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color borderLight = Color(0xFFE2E8F0);
-  static const Color bgApp = Color(0xFFF1F5F9);
-  static const Color bgCard = Color(0xFFFFFFFF);
-  static const Color bgSidebar = Color(0xFF0F172A);
-  static const Color sidebarText = Color(0xFF94A3B8);
-  static const Color sidebarActive = Color(0xFFFFFFFF);
+  static Color secondary = const Color(0xFF1E293B);
+  static Color textMuted = const Color(0xFF64748B);
+  static Color borderLight = const Color(0xFFE2E8F0);
+  static Color bgApp = const Color(0xFFF1F5F9);
+  static Color bgCard = const Color(0xFFFFFFFF);
+  static Color bgSidebar = const Color(0xFF0F172A);
+  static Color sidebarText = const Color(0xFF94A3B8);
+  static Color sidebarActive = const Color(0xFFFFFFFF);
 
   // Gradients
-  static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF194BFB), Color(0xFF4F46E5)],
+  static LinearGradient get primaryGradient => LinearGradient(
+    colors: [primary, primaryDark],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
-  static const LinearGradient sidebarGradient = LinearGradient(
-    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+  static LinearGradient get sidebarGradient => LinearGradient(
+    colors: [bgSidebar, secondary],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
-  static const LinearGradient bgGradient = LinearGradient(
-    colors: [Color(0xFFEEF2FF), Color(0xFFF8FAFC)],
+  static LinearGradient get bgGradient => LinearGradient(
+    colors: [primarySurface, bgApp],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static void updatePrimaryColor(Color color) {
+    primary = color;
+    primaryLight = color.withOpacity(0.8);
+    primaryDark = color.withOpacity(0.9);
+    primarySurface = color.withOpacity(0.1);
+  }
+
+  static void updateThemeMode(bool isDark) {
+    if (isDark) {
+      secondary = const Color(0xFFF8FAFC);
+      textMuted = const Color(0xFF94A3B8);
+      borderLight = const Color(0xFF334155);
+      bgApp = const Color(0xFF0F172A);
+      bgCard = const Color(0xFF1E293B);
+      bgSidebar = const Color(0xFF020617);
+      sidebarText = const Color(0xFF94A3B8);
+      sidebarActive = const Color(0xFFFFFFFF);
+    } else {
+      secondary = const Color(0xFF1E293B);
+      textMuted = const Color(0xFF64748B);
+      borderLight = const Color(0xFFE2E8F0);
+      bgApp = const Color(0xFFF1F5F9);
+      bgCard = const Color(0xFFFFFFFF);
+      bgSidebar = const Color(0xFF0F172A);
+      sidebarText = const Color(0xFF94A3B8);
+      sidebarActive = const Color(0xFFFFFFFF);
+    }
+  }
 }
 
 class AppTheme {
@@ -99,7 +128,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.secondary,
-          side: const BorderSide(color: AppColors.borderLight),
+          side: BorderSide(color: AppColors.borderLight),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
@@ -110,15 +139,15 @@ class AppTheme {
         fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.borderLight),
+          borderSide: BorderSide(color: AppColors.borderLight),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.borderLight),
+          borderSide: BorderSide(color: AppColors.borderLight),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         hintStyle: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 13),
@@ -129,10 +158,10 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: AppColors.borderLight),
+          side: BorderSide(color: AppColors.borderLight),
         ),
       ),
-      dividerTheme: const DividerThemeData(color: AppColors.borderLight, thickness: 1),
+      dividerTheme: DividerThemeData(color: AppColors.borderLight, thickness: 1),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.bgCard,
         elevation: 0,

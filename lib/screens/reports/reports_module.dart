@@ -169,14 +169,14 @@ class ReportsModule extends StatelessWidget {
             rows: rows.map((r) => DataRow(cells: [
               DataCell(Text(r.$1, style: const TextStyle(fontWeight: FontWeight.w600))),
               DataCell(Text(r.$2, style: const TextStyle(fontWeight: FontWeight.w700))),
-              DataCell(Text(r.$3, style: const TextStyle(color: AppColors.danger))),
-              DataCell(Text(r.$4, style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w700))),
-              DataCell(Text(r.$5, style: const TextStyle(color: AppColors.warning))),
+              DataCell(Text(r.$3, style: TextStyle(color: AppColors.danger))),
+              DataCell(Text(r.$4, style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700))),
+              DataCell(Text(r.$5, style: TextStyle(color: AppColors.warning))),
               DataCell(Text(r.$6, style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
               DataCell(Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(color: AppColors.successSurface, borderRadius: BorderRadius.circular(8)),
-                child: Text(r.$7, style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 12)),
+                child: Text(r.$7, style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 12)),
               )),
             ])).toList(),
           ),

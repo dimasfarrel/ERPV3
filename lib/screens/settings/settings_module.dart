@@ -7,6 +7,7 @@ import '../../data/providers/app_provider.dart';
 import '../../data/models/app_models.dart';
 import '../../widgets/common/erp_card.dart';
 import '../../widgets/common/status_badge.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 class SettingsModule extends StatefulWidget {
   const SettingsModule({super.key});
@@ -104,8 +105,8 @@ class _ProductsTab extends StatelessWidget {
               DataCell(Text('${p.stock}')),
               DataCell(StatusBadge(label: p.isActive ? 'Aktif' : 'Nonaktif', type: p.isActive ? 'success' : 'muted')),
               DataCell(Row(children: [
-                IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
-                IconButton(icon: const Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteProduct(p.sku), color: AppColors.danger),
+                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                IconButton(icon: Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteProduct(p.sku), color: AppColors.danger),
               ])),
             ])).toList(),
           ),
@@ -220,8 +221,8 @@ class _CustomersTab extends StatelessWidget {
               DataCell(Text(Formatters.compactCurrency(c.creditLimit))),
               DataCell(StatusBadge(label: c.isActive ? 'Aktif' : 'Nonaktif', type: c.isActive ? 'success' : 'muted')),
               DataCell(Row(children: [
-                IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
-                IconButton(icon: const Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteCustomer(c.code), color: AppColors.danger),
+                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                IconButton(icon: Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteCustomer(c.code), color: AppColors.danger),
               ])),
             ])).toList(),
           ),
@@ -272,8 +273,8 @@ class _VendorsTab extends StatelessWidget {
               DataCell(Text('${v.leadTimeDays} hari')),
               DataCell(StatusBadge(label: v.isActive ? 'Aktif' : 'Nonaktif', type: v.isActive ? 'success' : 'muted')),
               DataCell(Row(children: [
-                IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
-                IconButton(icon: const Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteVendor(v.code), color: AppColors.danger),
+                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                IconButton(icon: Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteVendor(v.code), color: AppColors.danger),
               ])),
             ])).toList(),
           ),
@@ -353,7 +354,7 @@ class _ComingSoonTab extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(60),
           child: Column(children: [
-            const Icon(Icons.construction_rounded, size: 48, color: AppColors.primary),
+            Icon(Icons.construction_rounded, size: 48, color: AppColors.primary),
             const SizedBox(height: 16),
             Text('$label', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.secondary)),
             const SizedBox(height: 8),
@@ -372,11 +373,11 @@ class _ThemeTab extends StatefulWidget {
 }
 
 class _ThemeTabState extends State<_ThemeTab> {
-  bool _isDark = false;
-  String _activeColor = 'blue';
-
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
+    final isDark = provider.isDarkMode;
+    final activeColor = provider.primaryColor;
     return ErpCard(
       padding: const EdgeInsets.all(28),
       child: Column(
@@ -394,15 +395,15 @@ class _ThemeTabState extends State<_ThemeTab> {
               _buildModeOption(
                 title: 'Terang (Light)',
                 icon: Icons.light_mode_rounded,
-                isActive: !_isDark,
-                onTap: () => setState(() => _isDark = false),
+                isActive: !isDark,
+                onTap: () => context.read<AppProvider>().setThemeMode(false),
               ),
               const SizedBox(width: 16),
               _buildModeOption(
                 title: 'Gelap (Dark)',
                 icon: Icons.dark_mode_rounded,
-                isActive: _isDark,
-                onTap: () => setState(() => _isDark = true),
+                isActive: isDark,
+                onTap: () => context.read<AppProvider>().setThemeMode(true),
               ),
             ],
           ),
@@ -412,18 +413,18 @@ class _ThemeTabState extends State<_ThemeTab> {
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildColorOption('blue', const Color(0xFF194BFB)),
+              _buildColorOption(activeColor, const Color(0xFF194BFB), context),
               const SizedBox(width: 16),
-              _buildColorOption('green', const Color(0xFF10B981)),
+              _buildColorOption(activeColor, const Color(0xFF10B981), context),
               const SizedBox(width: 16),
-              _buildColorOption('purple', const Color(0xFF8B5CF6)),
+              _buildColorOption(activeColor, const Color(0xFF8B5CF6), context),
               const SizedBox(width: 16),
-              _buildColorOption('orange', const Color(0xFFF97316)),
+              _buildColorOption(activeColor, const Color(0xFFF97316), context),
               const SizedBox(width: 16),
-              _buildColorOption('slate', const Color(0xFF475569)),
+              _buildColorOption(activeColor, const Color(0xFF475569), context),
               const SizedBox(width: 16),
               GestureDetector(
-                onTap: _showCustomColorDialog,
+                onTap: () => _showCustomColorDialog(context, activeColor),
                 child: Container(
                   width: 52, height: 52,
                   decoration: BoxDecoration(
@@ -483,10 +484,10 @@ class _ThemeTabState extends State<_ThemeTab> {
     );
   }
 
-  Widget _buildColorOption(String id, Color color) {
-    final isActive = _activeColor == id;
+  Widget _buildColorOption(Color activeColor, Color color, BuildContext context) {
+    final isActive = activeColor.value == color.value;
     return GestureDetector(
-      onTap: () => setState(() => _activeColor = id),
+      onTap: () => context.read<AppProvider>().setPrimaryColor(color),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 52,
@@ -502,32 +503,28 @@ class _ThemeTabState extends State<_ThemeTab> {
     );
   }
 
-  void _showCustomColorDialog() {
-    final ctrl = TextEditingController();
+  void _showCustomColorDialog(BuildContext context, Color currentColor) {
+    Color pickerColor = currentColor;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Warna Kustom', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Masukkan kode Hex (contoh: #FF5733):', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              decoration: const InputDecoration(hintText: '#...'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: ColorPicker(
+            pickerColor: pickerColor,
+            onColorChanged: (color) {
+              pickerColor = color;
+            },
+            pickerAreaHeightPercent: 0.8,
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() => _activeColor = 'custom');
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Warna kustom dipilih!')));
+              context.read<AppProvider>().setPrimaryColor(pickerColor);
             },
             child: const Text('Terapkan'),
           ),

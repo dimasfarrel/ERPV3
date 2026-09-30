@@ -256,7 +256,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                         borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
                       ),
                       child: Row(children: [
-                        const Icon(Icons.add, size: 16, color: AppColors.primary),
+                        Icon(Icons.add, size: 16, color: AppColors.primary),
                         const SizedBox(width: 8),
                         Text('+ Tambah Baris Produk', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
                       ]),
@@ -322,7 +322,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
 
   Widget _buildItemRow(int index, _LineItem item) {
     return Container(
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.borderLight))),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.borderLight))),
       child: Table(
         columnWidths: const {
           0: FlexColumnWidth(2.5), 1: FlexColumnWidth(2), 2: FlexColumnWidth(1),
@@ -356,7 +356,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
             )),
             TableCell(child: Center(
               child: IconButton(
-                icon: const Icon(Icons.close, size: 14, color: AppColors.danger),
+                icon: Icon(Icons.close, size: 14, color: AppColors.danger),
                 onPressed: _items.length > 1 ? () => setState(() => _items.removeAt(index)) : null,
               ),
             )),
@@ -444,7 +444,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
   Widget _buildHistoryTab() {
     return Center(
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.history_rounded, size: 64, color: AppColors.borderLight),
+        Icon(Icons.history_rounded, size: 64, color: AppColors.borderLight),
         const SizedBox(height: 16),
         Text('Belum ada riwayat untuk dokumen ini.', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textMuted)),
       ]),
@@ -518,7 +518,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
         fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
           return TextField(
             controller: controller, focusNode: focusNode, onEditingComplete: onEditingComplete,
-            decoration: _inputDeco('Ketik & cari...').copyWith(suffixIcon: const Icon(Icons.search, size: 16, color: AppColors.primary)),
+            decoration: _inputDeco('Ketik & cari...').copyWith(suffixIcon: Icon(Icons.search, size: 16, color: AppColors.primary)),
             style: GoogleFonts.inter(fontSize: 13),
           );
         },
@@ -543,7 +543,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
       fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
         return TextField(
           controller: controller, focusNode: focusNode, onEditingComplete: onEditingComplete,
-          decoration: _inputDeco('Ketik & cari...').copyWith(suffixIcon: const Icon(Icons.search, size: 16, color: AppColors.primary)),
+          decoration: _inputDeco('Ketik & cari...').copyWith(suffixIcon: Icon(Icons.search, size: 16, color: AppColors.primary)),
           style: GoogleFonts.inter(fontSize: 13),
         );
       },
@@ -594,9 +594,9 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.inter(fontSize: 12, color: AppColors.borderLight),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.borderLight)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.borderLight)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: AppColors.borderLight)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: AppColors.borderLight)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: AppColors.primary, width: 1.5)),
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         ),
@@ -607,18 +607,18 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
   InputDecoration _inputDeco(String hint) => InputDecoration(
     hintText: hint,
     hintStyle: GoogleFonts.inter(fontSize: 13, color: AppColors.borderLight),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderLight)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderLight)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderLight)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderLight)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.primary, width: 2)),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
   );
 
   InputDecoration _dropDeco(String hint) => InputDecoration(
     hintText: hint,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderLight)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderLight)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderLight)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.borderLight)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.primary, width: 2)),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
   );
