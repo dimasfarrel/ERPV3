@@ -80,10 +80,10 @@ class OverviewModule extends StatelessWidget {
       mainAxisSpacing: 16,
       childAspectRatio: 1.8,
       children: [
-        KpiCard(title: 'Total Penjualan (Bulan Ini)', value: 'Rp 842,5 Jt', trend: '14.2%', trendLabel: 'vs bulan sebelumnya', trendUp: true, icon: Icons.monetization_on_outlined, iconColor: AppColors.primary),
-        KpiCard(title: 'Total Nilai Valuasi Stok', value: 'Rp 1,48 M', trend: '3.8%', trendLabel: '12.450 unit item', trendUp: true, icon: Icons.inventory_2_outlined, iconColor: AppColors.success),
-        KpiCard(title: 'Purchase Order Pending', value: '8 Pesanan', trend: '2 Butuh Otorisasi', trendLabel: 'Total Rp 310 Juta', trendUp: false, icon: Icons.pending_actions_outlined, iconColor: AppColors.warning),
-        KpiCard(title: 'Peringatan Minimum Stok', value: '4 SKU Kritis', trend: 'Segera Restock', trendLabel: 'Gudang Kepanjen', trendUp: false, icon: Icons.warning_amber_outlined, iconColor: Color(0xFF8B5CF6)),
+        KpiCard(title: 'Total Penjualan (Bulan Ini)', value: 'Rp 0', trend: '0%', trendLabel: '-', trendUp: true, icon: Icons.monetization_on_outlined, iconColor: AppColors.primary),
+        KpiCard(title: 'Total Nilai Valuasi Stok', value: 'Rp 0', trend: '0%', trendLabel: '0 unit item', trendUp: true, icon: Icons.inventory_2_outlined, iconColor: AppColors.success),
+        KpiCard(title: 'Purchase Order Pending', value: '0 Pesanan', trend: '0 Butuh Otorisasi', trendLabel: 'Total Rp 0', trendUp: false, icon: Icons.pending_actions_outlined, iconColor: AppColors.warning),
+        KpiCard(title: 'Peringatan Minimum Stok', value: '0 SKU Kritis', trend: '-', trendLabel: '-', trendUp: false, icon: Icons.warning_amber_outlined, iconColor: Color(0xFF8B5CF6)),
       ],
     );
   }
@@ -112,8 +112,8 @@ class OverviewModule extends StatelessWidget {
   }
 
   Widget _buildBarChart() {
-    final salesData = [55.0, 70.0, 60.0, 90.0, 85.0, 95.0];
-    final expenseData = [35.0, 40.0, 30.0, 50.0, 45.0, 40.0];
+    final salesData = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    final expenseData = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     final labels = ['Mg 1', 'Mg 2', 'Mg 3', 'Mg 4', 'Mg 5', 'Mg 6'];
 
     return ErpCard(
@@ -184,12 +184,7 @@ class OverviewModule extends StatelessWidget {
   }
 
   Widget _buildWarehouseCapacity(AppProvider provider) {
-    final warehouses = [
-      ('Gudang Kepanjen', 84, AppColors.primary),
-      ('Transit Singosari', 58, AppColors.success),
-      ('Batu (Bahan Baku)', 42, AppColors.info),
-      ('Retail Lowokwaru', 91, AppColors.danger),
-    ];
+    final warehouses = <(String, int, Color)>[];
 
     return ErpCard(
       child: Column(

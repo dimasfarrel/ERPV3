@@ -49,9 +49,9 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildTopbar(BuildContext context, AppProvider provider, bool isMobile) {
-    final biz = provider.selectedBusiness?.name ?? 'PT Malang Manufaktur';
-    final cc = provider.selectedCostCenter?.code ?? 'CC-PROD';
-    final wh = provider.selectedWarehouse?.name ?? 'Gudang Utama Malang';
+    final biz = provider.selectedBusiness?.name ?? '-';
+    final cc = provider.selectedCostCenter?.code ?? '-';
+    final wh = provider.selectedWarehouse?.name ?? '-';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
