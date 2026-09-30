@@ -1,5 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../models/app_models.dart';
+import '../../core/theme/app_theme.dart';
 
 enum AppView { login, business, costCenter, gudang, dashboard }
 
@@ -150,16 +152,58 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void login(String username) {
+  Future<void> login({
+    required String username,
+    required String password,
+    required String ip,
+    required String port,
+    required BuildContext context,
+  }) async {
     _isLoading = true;
     notifyListeners();
-    Future.delayed(const Duration(milliseconds: 800), () {
-      _isLoggedIn = true;
-      _username = username;
-      _currentView = AppView.business;
+
+    try {
+      final dio = Dio();
+      final url = 'http://$ip:$port/api/v2/auth/login';
+      
+      final response = await dio.post(
+        url,
+        data: {
+          "client_id": "isoft_flutter",
+          "username": username,
+          "password": password,
+          "device_name": "Postman Windows", // as requested by user
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        _isLoggedIn = true;
+        _username = username;
+        _currentView = AppView.business;
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Login gagal: ${response.data}'),
+            backgroundColor: Colors.red,
+          ));
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Network Error: Gagal koneksi ke server $ip:$port'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
       _isLoading = false;
       notifyListeners();
-    });
+    }
   }
 
   void selectBusiness(BusinessEntity biz) {

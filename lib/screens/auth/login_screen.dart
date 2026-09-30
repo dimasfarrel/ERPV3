@@ -200,7 +200,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   void _onLogin() {
     if (_formKey.currentState?.validate() ?? true) {
-      context.read<AppProvider>().login(_usernameCtrl.text);
+      context.read<AppProvider>().login(
+        username: _usernameCtrl.text,
+        password: _passwordCtrl.text,
+        ip: _ipCtrl.text,
+        port: _portCtrl.text,
+        context: context,
+      );
     }
   }
 }
