@@ -25,7 +25,7 @@ class ErpMalangApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     return MaterialApp(
-      title: 'ERP Malang - Enterprise Suite',
+      title: 'iSoft ERP - System Core',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const AppRouter(),

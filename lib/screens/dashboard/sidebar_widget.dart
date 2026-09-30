@@ -51,20 +51,13 @@ class ErpSidebar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
       child: Row(
         children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(child: Text('M', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white))),
-          ),
+          Icon(Icons.layers_rounded, color: AppColors.primary, size: 28),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('ERP Malang', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
-              Text('Enterprise Suite', style: GoogleFonts.inter(fontSize: 11, color: AppColors.sidebarText)),
+              Text('iSoft ERP', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
+              Text('System Core', style: GoogleFonts.inter(fontSize: 11, color: AppColors.sidebarText, letterSpacing: 0.2)),
             ],
           ),
         ],
