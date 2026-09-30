@@ -421,6 +421,19 @@ class _ThemeTabState extends State<_ThemeTab> {
               _buildColorOption('orange', const Color(0xFFF97316)),
               const SizedBox(width: 16),
               _buildColorOption('slate', const Color(0xFF475569)),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: _showCustomColorDialog,
+                child: Container(
+                  width: 52, height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.borderLight, width: 2),
+                    gradient: const SweepGradient(colors: [Colors.red, Colors.yellow, Colors.green, Colors.blue, Colors.purple, Colors.red]),
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white, size: 24),
+                ),
+              ),
             ],
           ),
           
@@ -485,6 +498,40 @@ class _ThemeTabState extends State<_ThemeTab> {
           boxShadow: isActive ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)] : [],
         ),
         child: isActive ? const Icon(Icons.check, color: Colors.white, size: 24) : null,
+      ),
+    );
+  }
+
+  void _showCustomColorDialog() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Warna Kustom', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Masukkan kode Hex (contoh: #FF5733):', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(hintText: '#...'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _activeColor = 'custom');
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Warna kustom dipilih!')));
+            },
+            child: const Text('Terapkan'),
+          ),
+        ],
       ),
     );
   }
