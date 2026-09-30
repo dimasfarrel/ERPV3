@@ -19,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final _portCtrl = TextEditingController(text: '5432');
   final _databaseCtrl = TextEditingController(text: 'erp_malang_prod_v2');
   bool _obscurePassword = true;
+  bool _showAdvancedSettings = false;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
 
@@ -143,17 +144,28 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               obscure: _obscurePassword,
               onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
-            const SizedBox(height: 16),
-            _buildField(controller: _locationCtrl, label: 'Lokasi', icon: Icons.location_on_outlined, hint: 'Enter location'),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: _buildField(controller: _portCtrl, label: 'Port', icon: Icons.dns_outlined, hint: 'Port')),
-                const SizedBox(width: 12),
-                Expanded(flex: 2, child: _buildField(controller: _databaseCtrl, label: 'Database', icon: Icons.storage_outlined, hint: 'Database name')),
-              ],
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => setState(() => _showAdvancedSettings = !_showAdvancedSettings),
+                icon: Icon(_showAdvancedSettings ? Icons.keyboard_arrow_up_rounded : Icons.settings_outlined, size: 16, color: AppColors.textMuted),
+                label: Text('Advanced Setup', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+              ),
             ),
-            const SizedBox(height: 28),
+            if (_showAdvancedSettings) ...[
+              const SizedBox(height: 8),
+              _buildField(controller: _locationCtrl, label: 'Lokasi (API / Host)', icon: Icons.location_on_outlined, hint: 'Enter location'),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildField(controller: _portCtrl, label: 'Port', icon: Icons.dns_outlined, hint: 'Port')),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 2, child: _buildField(controller: _databaseCtrl, label: 'Database / Tenant', icon: Icons.storage_outlined, hint: 'Database name')),
+                ],
+              ),
+            ],
+            const SizedBox(height: 24),
             SizedBox(
               height: 50,
               child: ElevatedButton(
