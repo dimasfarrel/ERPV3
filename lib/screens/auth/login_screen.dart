@@ -161,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 children: [
                   Expanded(child: _buildField(controller: _portCtrl, label: 'Port', icon: Icons.dns_outlined, hint: 'Port')),
                   const SizedBox(width: 12),
-                  Expanded(flex: 2, child: _buildField(controller: _databaseCtrl, label: 'Database / Tenant', icon: Icons.storage_outlined, hint: 'Database name')),
+                  Expanded(flex: 2, child: _buildField(controller: _databaseCtrl, label: 'IP Port', icon: Icons.storage_outlined, hint: 'IP Port')),
                 ],
               ),
             ],
