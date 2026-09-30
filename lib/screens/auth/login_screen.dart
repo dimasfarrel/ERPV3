@@ -62,9 +62,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     constraints: const BoxConstraints(maxWidth: 460),
                     child: Column(
                       children: [
-                        const SizedBox(height: 40),
-                        _buildBrandBadge(),
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 60),
                         _buildLoginCard(provider),
                         const SizedBox(height: 40),
                       ],
@@ -86,32 +84,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildBrandBadge() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 52, height: 52,
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))],
-          ),
-          child: Center(
-            child: Text('M', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('ERP MALANG', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.secondary, letterSpacing: 1.5)),
-            Text('Enterprise Gateway', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildLoginCard(AppProvider provider) {
     return Container(
@@ -184,15 +157,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     ),
               ),
             ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _autofill,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text('✨ Isi Otomatis Contoh Demo', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
-            ),
           ],
         ),
       ),
@@ -232,13 +196,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  void _autofill() {
-    _usernameCtrl.text = 'admin_malang';
-    _passwordCtrl.text = 'erp@malang2026';
-    _portCtrl.text = '8080';
-    _ipCtrl.text = '192.168.1.100';
-    setState(() {});
-  }
+
 
   void _onLogin() {
     if (_formKey.currentState?.validate() ?? true) {

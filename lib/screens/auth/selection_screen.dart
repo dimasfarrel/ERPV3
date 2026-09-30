@@ -117,20 +117,19 @@ class _SelectionScreenState extends State<SelectionScreen> with TickerProviderSt
   }
 
   Widget _buildCard(dynamic item, int index) {
-    String icon = '';
     String name = '';
     String code = '';
     String desc = '';
     String sub = '';
 
     if (item is BusinessEntity) {
-      icon = item.icon; name = item.name; code = item.code;
+      name = item.name; code = item.code;
       desc = item.description; sub = item.activeProjects;
     } else if (item is CostCenter) {
-      icon = item.icon; name = item.name; code = item.code;
+      name = item.name; code = item.code;
       desc = item.department; sub = '';
     } else if (item is WarehouseEntity) {
-      icon = '🏭'; name = item.name; code = item.code;
+      name = item.name; code = item.code;
       desc = item.location; sub = '${item.utilization}% Terpakai';
     }
 
@@ -161,9 +160,8 @@ class _SelectionScreenState extends State<SelectionScreen> with TickerProviderSt
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(icon, style: const TextStyle(fontSize: 28)),
-                    const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
