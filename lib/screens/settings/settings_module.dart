@@ -57,6 +57,7 @@ class _SettingsModuleState extends State<SettingsModule> {
       case 'pelanggan': return _CustomersTab();
       case 'vendor': return _VendorsTab();
       case 'gudang': return _WarehouseTab();
+      case 'tema': return const _ThemeTab();
       default: return _ComingSoonTab(label: _tabs[_tabIds.indexOf(_activeTab)]);
     }
   }
@@ -359,6 +360,131 @@ class _ComingSoonTab extends StatelessWidget {
             Text('Fitur ini akan segera tersedia.', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted)),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+class _ThemeTab extends StatefulWidget {
+  const _ThemeTab();
+  @override
+  State<_ThemeTab> createState() => _ThemeTabState();
+}
+
+class _ThemeTabState extends State<_ThemeTab> {
+  bool _isDark = false;
+  String _activeColor = 'blue';
+
+  @override
+  Widget build(BuildContext context) {
+    return ErpCard(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Tema & Tampilan', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+          const SizedBox(height: 4),
+          Text('Sesuaikan tampilan aplikasi dengan preferensi visual Anda', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted)),
+          const Divider(height: 32),
+          
+          Text('Mode Tampilan', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildModeOption(
+                title: 'Terang (Light)',
+                icon: Icons.light_mode_rounded,
+                isActive: !_isDark,
+                onTap: () => setState(() => _isDark = false),
+              ),
+              const SizedBox(width: 16),
+              _buildModeOption(
+                title: 'Gelap (Dark)',
+                icon: Icons.dark_mode_rounded,
+                isActive: _isDark,
+                onTap: () => setState(() => _isDark = true),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 40),
+          Text('Warna Aksen Utama', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildColorOption('blue', const Color(0xFF194BFB)),
+              const SizedBox(width: 16),
+              _buildColorOption('green', const Color(0xFF10B981)),
+              const SizedBox(width: 16),
+              _buildColorOption('purple', const Color(0xFF8B5CF6)),
+              const SizedBox(width: 16),
+              _buildColorOption('orange', const Color(0xFFF97316)),
+              const SizedBox(width: 16),
+              _buildColorOption('slate', const Color(0xFF475569)),
+            ],
+          ),
+          
+          const SizedBox(height: 48),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton(onPressed: () {}, child: const Text('Kembalikan Default')),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Preferensi tema berhasil disimpan (Visual Preview)'),
+                    backgroundColor: AppColors.success,
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                },
+                child: const Text('Simpan Perubahan'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeOption({required String title, required IconData icon, required bool isActive, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 160,
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primarySurface : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isActive ? AppColors.primary : AppColors.borderLight, width: isActive ? 2 : 1),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 36, color: isActive ? AppColors.primary : AppColors.textMuted),
+            const SizedBox(height: 16),
+            Text(title, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: isActive ? AppColors.primary : AppColors.secondary)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorOption(String id, Color color) {
+    final isActive = _activeColor == id;
+    return GestureDetector(
+      onTap: () => setState(() => _activeColor = id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: isActive ? Border.all(color: Colors.white, width: 3) : null,
+          boxShadow: isActive ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)] : [],
+        ),
+        child: isActive ? const Icon(Icons.check, color: Colors.white, size: 24) : null,
       ),
     );
   }
