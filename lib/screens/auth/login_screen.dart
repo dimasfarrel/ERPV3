@@ -15,9 +15,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final _formKey = GlobalKey<FormState>();
   final _usernameCtrl = TextEditingController(text: 'admin_malang');
   final _passwordCtrl = TextEditingController(text: '••••••••••••');
-  final _locationCtrl = TextEditingController(text: 'Kantor Pusat Malang');
-  final _portCtrl = TextEditingController(text: '5432');
-  final _databaseCtrl = TextEditingController(text: 'erp_malang_prod_v2');
+  final _portCtrl = TextEditingController(text: '8080');
+  final _ipCtrl = TextEditingController(text: '192.168.1.100');
   bool _obscurePassword = true;
   bool _showAdvancedSettings = false;
   late AnimationController _animCtrl;
@@ -36,9 +35,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _animCtrl.dispose();
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
-    _locationCtrl.dispose();
     _portCtrl.dispose();
-    _databaseCtrl.dispose();
+    _ipCtrl.dispose();
     super.dispose();
   }
 
@@ -154,14 +152,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ),
             ),
             if (_showAdvancedSettings) ...[
-              const SizedBox(height: 8),
-              _buildField(controller: _locationCtrl, label: 'Lokasi (API / Host)', icon: Icons.location_on_outlined, hint: 'Enter location'),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _buildField(controller: _portCtrl, label: 'Port', icon: Icons.dns_outlined, hint: 'Port')),
+                  Expanded(flex: 2, child: _buildField(controller: _ipCtrl, label: 'IP Address / Host', icon: Icons.wifi, hint: '192.168.1.1')),
                   const SizedBox(width: 12),
-                  Expanded(flex: 2, child: _buildField(controller: _databaseCtrl, label: 'IP Port', icon: Icons.storage_outlined, hint: 'IP Port')),
+                  Expanded(child: _buildField(controller: _portCtrl, label: 'Port', icon: Icons.dns_outlined, hint: '8080')),
                 ],
               ),
             ],
@@ -239,9 +235,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   void _autofill() {
     _usernameCtrl.text = 'admin_malang';
     _passwordCtrl.text = 'erp@malang2026';
-    _locationCtrl.text = 'Kantor Pusat Malang';
-    _portCtrl.text = '5432';
-    _databaseCtrl.text = 'erp_malang_prod_v2';
+    _portCtrl.text = '8080';
+    _ipCtrl.text = '192.168.1.100';
     setState(() {});
   }
 
