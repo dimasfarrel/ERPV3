@@ -54,18 +54,40 @@ class _PurchasingModuleState extends State<PurchasingModule> {
       if (po.status == 'Selesai Diterima') paid += po.amount;
     }
 
-    return Row(
-      children: [
-        Expanded(child: _metricCard('Faktur belum dibayar', 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 800;
+        final card1 = _metricCard('Faktur belum dibayar', 
           provider.purchaseOrders.where((i) => i.status == 'Menunggu Otorisasi').length, 
-          Formatters.currency(unpaid), 'Total', const Color(0xFFF59E0B))),
-        const SizedBox(width: 16),
-        Expanded(child: _metricCard('Faktur telat dibayar', 0, 'Rp 0', 'Total', AppColors.danger)),
-        const SizedBox(width: 16),
-        Expanded(child: _metricCard('Pelunasan 30 hari terakhir', 
+          Formatters.currency(unpaid), 'Total', const Color(0xFFF59E0B));
+        final card2 = _metricCard('Faktur telat dibayar', 0, 'Rp 0', 'Total', AppColors.danger);
+        final card3 = _metricCard('Pelunasan 30 hari terakhir', 
           provider.purchaseOrders.where((i) => i.status == 'Selesai Diterima').length, 
-          Formatters.currency(paid), 'Total', AppColors.success)),
-      ],
+          Formatters.currency(paid), 'Total', AppColors.success);
+
+        if (isSmallScreen) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              card1,
+              const SizedBox(height: 16),
+              card2,
+              const SizedBox(height: 16),
+              card3,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: card1),
+            const SizedBox(width: 16),
+            Expanded(child: card2),
+            const SizedBox(width: 16),
+            Expanded(child: card3),
+          ],
+        );
+      },
     );
   }
 

@@ -46,22 +46,46 @@ class _SalesModuleState extends State<SalesModule> {
         Text('Penjualan', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.secondary)),
         const SizedBox(height: 20),
         // Metric cards
-        Row(children: [
-          Expanded(child: _metricCard('Belum Dibayar',
-            provider.salesInvoices.where((i) => i.status == 'Belum Bayar').length,
-            Formatters.currency(unpaid), '${provider.salesInvoices.where((i) => i.status == 'Belum Bayar').length} Faktur Jatuh Tempo Bulan Ini',
-            AppColors.warning)),
-          const SizedBox(width: 16),
-          Expanded(child: _metricCard('Jatuh Tempo',
-            provider.salesInvoices.where((i) => i.status == 'Jatuh Tempo').length,
-            Formatters.currency(due), '${provider.salesInvoices.where((i) => i.status == 'Jatuh Tempo').length} Faktur Melewati Batas Tempo',
-            AppColors.danger)),
-          const SizedBox(width: 16),
-          Expanded(child: _metricCard('Sudah Lunas',
-            provider.salesInvoices.where((i) => i.status == 'Lunas').length,
-            Formatters.currency(paid), '${provider.salesInvoices.where((i) => i.status == 'Lunas').length} Faktur Selesai Terbayar',
-            AppColors.success)),
-        ]),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmallScreen = constraints.maxWidth < 800;
+            final card1 = _metricCard('Belum Dibayar',
+              provider.salesInvoices.where((i) => i.status == 'Belum Bayar').length,
+              Formatters.currency(unpaid), '${provider.salesInvoices.where((i) => i.status == 'Belum Bayar').length} Faktur Jatuh Tempo Bulan Ini',
+              AppColors.warning);
+            final card2 = _metricCard('Jatuh Tempo',
+              provider.salesInvoices.where((i) => i.status == 'Jatuh Tempo').length,
+              Formatters.currency(due), '${provider.salesInvoices.where((i) => i.status == 'Jatuh Tempo').length} Faktur Melewati Batas Tempo',
+              AppColors.danger);
+            final card3 = _metricCard('Sudah Lunas',
+              provider.salesInvoices.where((i) => i.status == 'Lunas').length,
+              Formatters.currency(paid), '${provider.salesInvoices.where((i) => i.status == 'Lunas').length} Faktur Selesai Terbayar',
+              AppColors.success);
+
+            if (isSmallScreen) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  card1,
+                  const SizedBox(height: 16),
+                  card2,
+                  const SizedBox(height: 16),
+                  card3,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: card1),
+                const SizedBox(width: 16),
+                Expanded(child: card2),
+                const SizedBox(width: 16),
+                Expanded(child: card3),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 20),
         // Action row with DROPDOWN button
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
