@@ -28,13 +28,37 @@ class _AccountingModuleState extends State<AccountingModule> {
           OutlinedButton.icon(icon: const Icon(Icons.upload_rounded, size: 16), label: const Text('Export Laporan'), onPressed: () {}),
         ]),
         const SizedBox(height: 20),
-        Row(children: [
-          Expanded(child: _metricCard('Kas & Setara Kas', 'Rp 1,24 M', 'Saldo akhir periode', AppColors.primary, '↑')),
-          const SizedBox(width: 16),
-          Expanded(child: _metricCard('Total Pendapatan', 'Rp 842 Jt', 'Bulan September 2026', AppColors.success, '↑')),
-          const SizedBox(width: 16),
-          Expanded(child: _metricCard('Total Beban', 'Rp 583 Jt', 'Termasuk HPP & Operasional', AppColors.warning, '!')),
-        ]),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmallScreen = constraints.maxWidth < 800;
+            final card1 = _metricCard('Kas & Setara Kas', 'Rp 1,24 M', 'Saldo akhir periode', AppColors.primary, '↑');
+            final card2 = _metricCard('Total Pendapatan', 'Rp 842 Jt', 'Bulan September 2026', AppColors.success, '↑');
+            final card3 = _metricCard('Total Beban', 'Rp 583 Jt', 'Termasuk HPP & Operasional', AppColors.warning, '!');
+
+            if (isSmallScreen) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  card1,
+                  const SizedBox(height: 16),
+                  card2,
+                  const SizedBox(height: 16),
+                  card3,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: card1),
+                const SizedBox(width: 16),
+                Expanded(child: card2),
+                const SizedBox(width: 16),
+                Expanded(child: card3),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 20),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,

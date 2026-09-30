@@ -34,11 +34,29 @@ class ReportsModule extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 20),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(flex: 3, child: _buildRevenueChart()),
-          const SizedBox(width: 16),
-          Expanded(flex: 2, child: _buildTopCustomers()),
-        ]),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmallScreen = constraints.maxWidth < 800;
+            if (isSmallScreen) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildRevenueChart(),
+                  const SizedBox(height: 16),
+                  _buildTopCustomers(),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start, 
+              children: [
+                Expanded(flex: 3, child: _buildRevenueChart()),
+                const SizedBox(width: 16),
+                Expanded(flex: 2, child: _buildTopCustomers()),
+              ]
+            );
+          }
+        ),
         const SizedBox(height: 20),
         _buildMonthlySummary(),
       ]),
