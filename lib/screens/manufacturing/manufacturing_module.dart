@@ -55,7 +55,7 @@ class _ManufacturingModuleState extends State<ManufacturingModule> {
               ElevatedButton.icon(
                 onPressed: () => _showAddWoDialog(context, provider),
                 icon: const Icon(Icons.add_circle_outline, size: 16),
-                label: const Text('+ Rilis SPK Baru'),
+                label: const Text('Rilis SPK Baru'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.manufacturing,
                   foregroundColor: Colors.white,
@@ -195,9 +195,16 @@ class _ManufacturingModuleState extends State<ManufacturingModule> {
             ),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.workOrders.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Belum ada surat perintah kerja (SPK).', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               headingTextStyle: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
               dataTextStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.secondary),
@@ -473,9 +480,16 @@ class _ManufacturingModuleState extends State<ManufacturingModule> {
             ),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.disassemblyOrders.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Belum ada riwayat SPK pembongkaran.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               columns: const [
                 DataColumn(label: Text('No. DO')),
@@ -522,6 +536,10 @@ class _ManufacturingModuleState extends State<ManufacturingModule> {
   }
 
   void _showAddWoDialog(BuildContext context, AppProvider provider) {
+    if (provider.boms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Formula BOM kosong! Tambahkan Formula BOM terlebih dahulu.')));
+      return;
+    }
     String selectedBomId = provider.boms.first.id;
     int qty = 20;
 

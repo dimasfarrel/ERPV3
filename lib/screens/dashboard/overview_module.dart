@@ -67,7 +67,7 @@ class OverviewModule extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: () => context.read<AppProvider>().switchModule('sales'),
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('+ Penjualan Baru'),
+              label: const Text('Penjualan Baru'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primaryColor,
                 foregroundColor: Colors.white,
@@ -375,9 +375,16 @@ class OverviewModule extends StatelessWidget {
             ),
           ),
           Divider(height: 1, color: _borderColor),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.salesInvoices.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Belum ada transaksi penjualan terbaru.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(_headerColor),
               dividerThickness: 1,
               headingTextStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, color: _textPrimary, fontSize: 13),

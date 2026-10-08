@@ -1070,7 +1070,7 @@ class _LiteErpScreenState extends State<LiteErpScreen> {
               ElevatedButton.icon(
                 onPressed: () => _showAddCashDialog(context, provider),
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('+ Catat Kas Masuk/Keluar'),
+                label: const Text('Catat Kas Masuk/Keluar'),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7)),
               ),
             ],
@@ -1108,47 +1108,61 @@ class _LiteErpScreenState extends State<LiteErpScreen> {
           ),
           const SizedBox(height: 16),
           Container(
+            width: double.infinity,
             decoration: BoxDecoration(color: AppColors.bgCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderLight)),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
-              columns: const [
-                DataColumn(label: Text('Tipe Kas')),
-                DataColumn(label: Text('Kategori')),
-                DataColumn(label: Text('Keterangan Catatan')),
-                DataColumn(label: Text('Nominal')),
-                DataColumn(label: Text('Tanggal')),
-              ],
-              rows: provider.liteCashTransactions.map((c) {
-                final isIn = c.type == 'in';
-                return DataRow(cells: [
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (isIn ? AppColors.success : AppColors.danger).withAlpha(25),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        isIn ? 'KAS MASUK' : 'KAS KELUAR',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isIn ? AppColors.success : AppColors.danger),
+            child: provider.liteCashTransactions.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Center(
+                      child: Text('Belum ada catatan kas laci.', style: GoogleFonts.plusJakartaSans(color: AppColors.textMuted)),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 40),
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
+                        columns: const [
+                          DataColumn(label: Text('Tipe Kas')),
+                          DataColumn(label: Text('Kategori')),
+                          DataColumn(label: Text('Keterangan Catatan')),
+                          DataColumn(label: Text('Nominal')),
+                          DataColumn(label: Text('Tanggal')),
+                        ],
+                        rows: provider.liteCashTransactions.map((c) {
+                          final isIn = c.type == 'in';
+                          return DataRow(cells: [
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: (isIn ? AppColors.success : AppColors.danger).withAlpha(25),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  isIn ? 'KAS MASUK' : 'KAS KELUAR',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isIn ? AppColors.success : AppColors.danger),
+                                ),
+                              ),
+                            ),
+                            DataCell(Text(c.category, style: const TextStyle(fontWeight: FontWeight.w600))),
+                            DataCell(Text(c.note)),
+                            DataCell(
+                              Text(
+                                '${isIn ? '+' : '-'}${Formatters.currency(c.amount)}',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontWeight: FontWeight.w700,
+                                  color: isIn ? AppColors.success : AppColors.danger,
+                                ),
+                              ),
+                            ),
+                            DataCell(Text(Formatters.dateShort(c.date))),
+                          ]);
+                        }).toList(),
                       ),
                     ),
                   ),
-                  DataCell(Text(c.category, style: const TextStyle(fontWeight: FontWeight.w600))),
-                  DataCell(Text(c.note)),
-                  DataCell(
-                    Text(
-                      '${isIn ? '+' : '-'}${Formatters.currency(c.amount)}',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontWeight: FontWeight.w700,
-                        color: isIn ? AppColors.success : AppColors.danger,
-                      ),
-                    ),
-                  ),
-                  DataCell(Text(Formatters.dateShort(c.date))),
-                ]);
-              }).toList(),
-            ),
           ),
         ],
       ),
@@ -1235,48 +1249,62 @@ class _LiteErpScreenState extends State<LiteErpScreen> {
           ),
           const SizedBox(height: 16),
           Container(
+            width: double.infinity,
             decoration: BoxDecoration(color: AppColors.bgCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderLight)),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
-              columns: const [
-                DataColumn(label: Text('No. Nota')),
-                DataColumn(label: Text('Pelanggan Bon Toko')),
-                DataColumn(label: Text('No. Kontak HP')),
-                DataColumn(label: Text('Nominal Bon')),
-                DataColumn(label: Text('Jatuh Tempo')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Aksi Pelunasan')),
-              ],
-              rows: provider.liteDebts.map((d) {
-                final isPaid = d.status == 'Lunas';
-                return DataRow(cells: [
-                  DataCell(Text(d.orderNo, style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w700))),
-                  DataCell(Text(d.customerName, style: const TextStyle(fontWeight: FontWeight.w600))),
-                  DataCell(Text(d.phone, style: GoogleFonts.jetBrainsMono(fontSize: 11))),
-                  DataCell(Text(Formatters.currency(d.amount), style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w700, color: isPaid ? AppColors.success : AppColors.danger))),
-                  DataCell(Text(Formatters.dateShort(d.dueDate))),
-                  DataCell(StatusBadge(label: d.status, type: isPaid ? 'success' : 'warning')),
-                  DataCell(
-                    isPaid
-                        ? const Text('✓ Lunas Terbayar', style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w600))
-                        : ElevatedButton.icon(
-                            onPressed: () {
-                              provider.settleLiteDebt(d.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Bon ${d.customerName} sebesar ${Formatters.currency(d.amount)} berhasil dilunasi dan masuk ke laci kas!'), backgroundColor: AppColors.success),
-                              );
-                            },
-                            icon: const Icon(Icons.check, size: 14),
-                            label: const Text('Lunasi Bon'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.success,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: provider.liteDebts.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Center(
+                      child: Text('Belum ada catatan bon tempo pelanggan.', style: GoogleFonts.plusJakartaSans(color: AppColors.textMuted)),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 40),
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
+                        columns: const [
+                          DataColumn(label: Text('No. Nota')),
+                          DataColumn(label: Text('Pelanggan Bon Toko')),
+                          DataColumn(label: Text('No. Kontak HP')),
+                          DataColumn(label: Text('Nominal Bon')),
+                          DataColumn(label: Text('Jatuh Tempo')),
+                          DataColumn(label: Text('Status')),
+                          DataColumn(label: Text('Aksi Pelunasan')),
+                        ],
+                        rows: provider.liteDebts.map((d) {
+                          final isPaid = d.status == 'Lunas';
+                          return DataRow(cells: [
+                            DataCell(Text(d.orderNo, style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w700))),
+                            DataCell(Text(d.customerName, style: const TextStyle(fontWeight: FontWeight.w600))),
+                            DataCell(Text(d.phone, style: GoogleFonts.jetBrainsMono(fontSize: 11))),
+                            DataCell(Text(Formatters.currency(d.amount), style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w700, color: isPaid ? AppColors.success : AppColors.danger))),
+                            DataCell(Text(Formatters.dateShort(d.dueDate))),
+                            DataCell(StatusBadge(label: d.status, type: isPaid ? 'success' : 'warning')),
+                            DataCell(
+                              isPaid
+                                  ? const Text('✓ Lunas Terbayar', style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w600))
+                                  : ElevatedButton.icon(
+                                      onPressed: () {
+                                        provider.settleLiteDebt(d.id);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Bon ${d.customerName} sebesar ${Formatters.currency(d.amount)} berhasil dilunasi dan masuk ke laci kas!'), backgroundColor: AppColors.success),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.check, size: 14),
+                                      label: const Text('Lunasi Bon'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.success,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      ),
+                                    ),
                             ),
-                          ),
+                          ]);
+                        }).toList(),
+                      ),
+                    ),
                   ),
-                ]);
-              }).toList(),
-            ),
           ),
         ],
       ),

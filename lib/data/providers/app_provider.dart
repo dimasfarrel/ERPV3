@@ -610,6 +610,24 @@ class AppProvider extends ChangeNotifier {
       CustomerModel(code: 'CUST-002', companyName: 'Toko Makmur', contact: '0899887766', city: 'Surabaya', type: 'B2C', creditLimit: 10000000),
     ];
 
+    inventoryItems = [
+      InventoryItem(sku: 'SKU-001', name: 'Plat Besi 2mm', category: 'Raw Material', stockAvailable: 1500, unit: 'Lembar', warehouse: 'GD-JKT', stockMin: 500, unitPrice: 150000),
+      InventoryItem(sku: 'SKU-002', name: 'Baut M8', category: 'Komponen', stockAvailable: 12000, unit: 'Pcs', warehouse: 'GD-JKT', stockMin: 2000, unitPrice: 500),
+    ];
+
+    boms = [
+      BillOfMaterials(id: 'bom-1', bomCode: 'BOM-RKA-01', finishedGoodSku: 'FG-001', finishedGoodName: 'Rakitan Meja Besi', components: [], outputUnit: 'Unit', outputQty: 1, directLaborCost: 50000, overheadCost: 10000),
+    ];
+
+    employees = [
+      Employee(id: 'emp-1', nip: '1001', name: 'Andi Saputra', position: 'Operator', department: 'Produksi', status: 'Tetap', joinDate: DateTime(2020, 1, 15), baseSalary: 4500000, allowance: 500000, email: 'andi@demo.com', phone: '08123', bankAccount: '1234'),
+    ];
+
+    coa = [
+      ChartOfAccount(code: '1-1000', name: 'Kas & Bank', category: 'Aset Lancar', normalBalance: 'Debit', balance: 250000000),
+      ChartOfAccount(code: '4-1000', name: 'Pendapatan Penjualan', category: 'Pendapatan', normalBalance: 'Kredit', balance: 50000000),
+    ];
+
     _selectedBusiness = null;
     _selectedCostCenter = null;
     _selectedWarehouse = null;

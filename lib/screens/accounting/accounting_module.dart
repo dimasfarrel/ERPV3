@@ -444,16 +444,23 @@ class _AccountingModuleState extends State<AccountingModule> {
                 ElevatedButton.icon(
                   onPressed: () => _showAddJournalDialog(context, provider),
                   icon: const Icon(Icons.add, size: 14),
-                  label: const Text('+ Entri Jurnal Baru'),
+                  label: const Text('Entri Jurnal Baru'),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                 ),
               ],
             ),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.journalEntries.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Belum ada data entri jurnal (GL).', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               columns: const [
                 DataColumn(label: Text('No. Bukti')),
@@ -568,9 +575,16 @@ class _AccountingModuleState extends State<AccountingModule> {
             child: Text('Bagan Akun Standar Akuntansi Keuangan (Chart of Accounts)', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700)),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.coa.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Bagan akun (COA) kosong.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               columns: const [
                 DataColumn(label: Text('Kode Akun')),

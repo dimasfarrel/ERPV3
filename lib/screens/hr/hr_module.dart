@@ -55,7 +55,7 @@ class _HrModuleState extends State<HrModule> {
               ElevatedButton.icon(
                 onPressed: () => _showAddEmployeeDialog(context, provider),
                 icon: const Icon(Icons.person_add_alt_1_outlined, size: 16),
-                label: const Text('+ Tambah Karyawan'),
+                label: const Text('Tambah Karyawan'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -189,9 +189,16 @@ class _HrModuleState extends State<HrModule> {
             ),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.employees.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Belum ada data karyawan.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               columns: const [
                 DataColumn(label: Text('NIP')),
@@ -254,9 +261,16 @@ class _HrModuleState extends State<HrModule> {
             ),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.payrollRecords.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Belum ada data riwayat penggajian (payroll).', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               columns: const [
                 DataColumn(label: Text('Periode')),

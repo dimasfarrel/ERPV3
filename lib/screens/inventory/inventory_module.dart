@@ -57,7 +57,7 @@ class _InventoryModuleState extends State<InventoryModule> {
               ElevatedButton.icon(
                 onPressed: () => _showAddTransferDialog(context, provider),
                 icon: const Icon(Icons.swap_horiz, size: 16),
-                label: const Text('+ Mutasi Antar Gudang'),
+                label: const Text('Mutasi Antar Gudang'),
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
               ),
             ],
@@ -182,9 +182,16 @@ class _InventoryModuleState extends State<InventoryModule> {
             ),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.inventoryItems.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Katalog SKU kosong. Belum ada master data barang.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               columns: const [
                 DataColumn(label: Text('Kode SKU')),
@@ -226,9 +233,16 @@ class _InventoryModuleState extends State<InventoryModule> {
             child: Text('Surat Jalan Mutasi Perpindahan Barang Antar Gudang', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700)),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          provider.stockTransfers.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Belum ada riwayat surat jalan mutasi.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               columns: const [
                 DataColumn(label: Text('No. Surat Jalan')),
@@ -291,9 +305,16 @@ class _InventoryModuleState extends State<InventoryModule> {
             ),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+          alerts.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: Text('Stok aman. Tidak ada peringatan safety stock.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
               headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
               columns: const [
                 DataColumn(label: Text('Kode SKU')),
@@ -333,6 +354,10 @@ class _InventoryModuleState extends State<InventoryModule> {
   }
 
   void _showAddTransferDialog(BuildContext context, AppProvider provider) {
+    if (provider.inventoryItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Katalog SKU kosong! Tambahkan produk master terlebih dahulu.')));
+      return;
+    }
     String source = 'Gudang Bahan Baku & Komponen';
     String dest = 'Gudang Display Toko / Lite POS';
     String selectedSku = provider.inventoryItems.first.sku;

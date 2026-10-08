@@ -59,7 +59,7 @@ class _PurchasingModuleState extends State<PurchasingModule> {
               ElevatedButton.icon(
                 onPressed: () => provider.openNewForm('purchasing'),
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('+ Buat PO Pembelian'),
+                label: const Text('Buat PO Pembelian'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryColor,
                   foregroundColor: Colors.white,
@@ -246,11 +246,18 @@ class _PurchasingModuleState extends State<PurchasingModule> {
           ),
           Divider(height: 1, color: _borderColor),
           LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: DataTable(
+            builder: (context, constraints) => pos.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(
+                      child: Text('Belum ada riwayat dokumen PO.', style: TextStyle(color: Colors.grey)),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                      child: DataTable(
               headingRowColor: WidgetStateProperty.all(_headerColor),
               dividerThickness: 1,
               headingTextStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, color: _textPrimary, fontSize: 13),
@@ -344,11 +351,18 @@ class _PurchasingModuleState extends State<PurchasingModule> {
           ),
           Divider(height: 1, color: _borderColor),
           LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: DataTable(
+            builder: (context, constraints) => provider.apAging.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(
+                      child: Text('Belum ada data hutang usaha (AP).', style: TextStyle(color: Colors.grey)),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                      child: DataTable(
               headingRowColor: WidgetStateProperty.all(_headerColor),
               dividerThickness: 1,
               headingTextStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, color: _textPrimary, fontSize: 13),
