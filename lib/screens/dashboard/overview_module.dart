@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/providers/app_provider.dart';
 import '../../widgets/common/kpi_card.dart';
@@ -15,54 +14,78 @@ class OverviewModule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPageHeader(context),
-          const SizedBox(height: 20),
-          _buildKpiGrid(context),
-          const SizedBox(height: 20),
-          _buildChartsRow(context, provider),
-          const SizedBox(height: 20),
-          _buildRecentTransactions(context, provider),
+          _buildPageHeader(context, isDark),
+          const SizedBox(height: 24),
+          _buildKpiGrid(context, provider, isDark),
+          const SizedBox(height: 24),
+          _buildChartsRow(context, provider, isDark),
+          const SizedBox(height: 24),
+          _buildRecentTransactions(context, provider, isDark),
         ],
       ),
     );
   }
 
-  Widget _buildPageHeader(BuildContext context) {
+  Widget _buildPageHeader(BuildContext context, bool isDark) {
+    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
+    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+
     return Wrap(
       spacing: 16,
       runSpacing: 16,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         SizedBox(
-          width: 400,
+          width: 440,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Dashboard Operasional & Finansial', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.secondary)),
-              Text('Ringkasan performa real-time rantai pasok dan aktivitas bisnis',
-                style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted)),
+              Text(
+                'Dashboard Operasional & Finansial',
+                style: GoogleFonts.ibmPlexSans(fontSize: 24, fontWeight: FontWeight.w700, color: _textPrimary),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Ringkasan eksekutif real-time rantai pasok, pabrikasi, dan performa bisnis',
+                style: GoogleFonts.ibmPlexSans(fontSize: 14, color: _textSecondary),
+              ),
             ],
           ),
         ),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 12,
+          runSpacing: 12,
           children: [
             ElevatedButton.icon(
               onPressed: () => context.read<AppProvider>().switchModule('sales'),
               icon: const Icon(Icons.add, size: 16),
               label: const Text('+ Penjualan Baru'),
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                textStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, fontSize: 13),
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
             ),
             OutlinedButton(
-              onPressed: () => context.read<AppProvider>().switchModule('purchasing'),
-              child: const Text('+ Pembelian Baru'),
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+              onPressed: () => context.read<AppProvider>().switchModule('manufacturing'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                side: BorderSide(color: isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                textStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              child: Text('Lihat SPK Manufaktur', style: TextStyle(color: _textPrimary)),
             ),
           ],
         ),
@@ -70,51 +93,101 @@ class OverviewModule extends StatelessWidget {
     );
   }
 
-  Widget _buildKpiGrid(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
+  Widget _buildKpiGrid(BuildContext context, AppProvider provider, bool isDark) {
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width < 700 ? 1 : (width < 1100 ? 2 : 4);
+
+    final totalSales = provider.salesInvoices.fold(0.0, (s, i) => s + i.amount);
+    final totalValuation = provider.inventoryItems.fold(0.0, (s, i) => s + (i.stockAvailable * i.unitPrice));
+    final pendingPo = provider.purchaseOrders.where((p) => p.status == 'Menunggu Otorisasi').length;
+    final lowStockCount = provider.inventoryItems.where((i) => i.stockAvailable < i.stockMin).length;
+
+    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+    final Color _successColor = isDark ? const Color(0xFF28A745) : const Color(0xFF087A65);
+    final Color _warningColor = isDark ? const Color(0xFFF0BD63) : const Color(0xFF9A6200);
+    final Color _dangerColor = isDark ? const Color(0xFFE55353) : const Color(0xFFB3363B);
+
     return GridView.count(
-      crossAxisCount: isMobile ? 1 : 4,
+      crossAxisCount: crossAxisCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.8,
+      childAspectRatio: crossAxisCount == 4 ? 1.6 : (crossAxisCount == 2 ? 1.8 : 2.5),
       children: [
-        KpiCard(title: 'Total Penjualan (Bulan Ini)', value: 'Rp 0', trend: '0%', trendLabel: '-', trendUp: true, icon: Icons.monetization_on_outlined, iconColor: AppColors.primary),
-        KpiCard(title: 'Total Nilai Valuasi Stok', value: 'Rp 0', trend: '0%', trendLabel: '0 unit item', trendUp: true, icon: Icons.inventory_2_outlined, iconColor: AppColors.success),
-        KpiCard(title: 'Purchase Order Pending', value: '0 Pesanan', trend: '0 Butuh Otorisasi', trendLabel: 'Total Rp 0', trendUp: false, icon: Icons.pending_actions_outlined, iconColor: AppColors.warning),
-        KpiCard(title: 'Peringatan Minimum Stok', value: '0 SKU Kritis', trend: '-', trendLabel: '-', trendUp: false, icon: Icons.warning_amber_outlined, iconColor: Color(0xFF8B5CF6)),
+        KpiCard(
+          title: 'Total Penjualan (Bulan Ini)',
+          value: Formatters.compactCurrency(totalSales),
+          trend: '+21.4%',
+          trendLabel: '${provider.salesInvoices.length} Faktur',
+          trendUp: true,
+          icon: Icons.monetization_on_outlined,
+          iconColor: _primaryColor,
+        ),
+        KpiCard(
+          title: 'Total Nilai Valuasi Stok',
+          value: Formatters.compactCurrency(totalValuation),
+          trend: '+12.5%',
+          trendLabel: '${provider.inventoryItems.length} Master SKU',
+          trendUp: true,
+          icon: Icons.inventory_2_outlined,
+          iconColor: _successColor,
+        ),
+        KpiCard(
+          title: 'Purchase Order Pending',
+          value: '$pendingPo Pesanan',
+          trend: 'Otorisasi',
+          trendLabel: 'Perlu Persetujuan',
+          trendUp: false,
+          icon: Icons.pending_actions_outlined,
+          iconColor: _warningColor,
+        ),
+        KpiCard(
+          title: 'Peringatan Safety Stock',
+          value: '$lowStockCount SKU Kritis',
+          trend: 'Restock',
+          trendLabel: 'Bawah Batas Minimum',
+          trendUp: false,
+          icon: Icons.warning_amber_outlined,
+          iconColor: _dangerColor,
+        ),
       ],
     );
   }
 
-  Widget _buildChartsRow(BuildContext context, AppProvider provider) {
-    final isMobile = MediaQuery.of(context).size.width < 800;
-    
+  Widget _buildChartsRow(BuildContext context, AppProvider provider, bool isDark) {
+    final isMobile = MediaQuery.of(context).size.width < 900;
+
     if (isMobile) {
       return Column(
         children: [
-          _buildBarChart(),
+          _buildBarChart(isDark),
           const SizedBox(height: 16),
-          _buildWarehouseCapacity(provider),
+          _buildWarehouseCapacity(provider, isDark),
         ],
       );
     }
-    
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(flex: 3, child: _buildBarChart()),
+        Expanded(flex: 3, child: _buildBarChart(isDark)),
         const SizedBox(width: 16),
-        Expanded(flex: 2, child: _buildWarehouseCapacity(provider)),
+        Expanded(flex: 2, child: _buildWarehouseCapacity(provider, isDark)),
       ],
     );
   }
 
-  Widget _buildBarChart() {
-    final salesData = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    final expenseData = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+  Widget _buildBarChart(bool isDark) {
+    final salesData = [45.0, 68.0, 52.0, 85.0, 92.0, 78.0];
+    final expenseData = [25.0, 35.0, 28.0, 42.0, 45.0, 38.0];
     final labels = ['Mg 1', 'Mg 2', 'Mg 3', 'Mg 4', 'Mg 5', 'Mg 6'];
+    
+    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
+    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+    final Color _secondaryBarColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+    final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
 
     return ErpCard(
       child: Column(
@@ -123,49 +196,70 @@ class OverviewModule extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Arus Kas & Performa Penjualan (H2 2026)', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-              Text('Periode Mingguan', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted)),
+              Expanded(
+                child: Text(
+                  'Arus Kas & Performa Penjualan (H2 2026)',
+                  style: GoogleFonts.ibmPlexSans(fontSize: 15, fontWeight: FontWeight.w600, color: _textPrimary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('Periode Mingguan', style: GoogleFonts.ibmPlexSans(fontSize: 12, color: _textSecondary)),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           SizedBox(
-            height: 180,
+            height: 200,
             child: BarChart(
               BarChartData(
                 maxY: 110,
-                gridData: FlGridData(show: true, drawVerticalLine: false, horizontalInterval: 25,
-                  getDrawingHorizontalLine: (_) => FlLine(color: AppColors.borderLight, strokeWidth: 1)),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: 25,
+                  getDrawingHorizontalLine: (_) => FlLine(color: _borderColor, strokeWidth: 1, dashArray: [4, 4]),
+                ),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (val, _) {
-                    final idx = val.toInt();
-                    if (idx < labels.length) return Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(labels[idx], style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
-                    );
-                    return const SizedBox.shrink();
-                  })),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (val, _) {
+                        final idx = val.toInt();
+                        if (idx < labels.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(labels[idx], style: GoogleFonts.ibmPlexSans(fontSize: 11, color: _textSecondary)),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ),
                 ),
-                barGroups: List.generate(6, (i) => BarChartGroupData(
-                  x: i,
-                  barRods: [
-                    BarChartRodData(toY: salesData[i], color: AppColors.primary, width: 14, borderRadius: BorderRadius.circular(4)),
-                    BarChartRodData(toY: expenseData[i], color: const Color(0xFFCBD5E1), width: 14, borderRadius: BorderRadius.circular(4)),
-                  ],
-                  barsSpace: 4,
-                )),
+                barGroups: List.generate(
+                  6,
+                  (i) => BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(toY: salesData[i], color: _primaryColor, width: 14, borderRadius: BorderRadius.circular(2)),
+                      BarChartRodData(toY: expenseData[i], color: _secondaryBarColor, width: 14, borderRadius: BorderRadius.circular(2)),
+                    ],
+                    barsSpace: 4,
+                  ),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
-              _chartLegend(AppColors.primary, 'Penjualan Bersih'),
+              _chartLegend(_primaryColor, 'Penjualan Bersih (IDR Jt)', _textSecondary),
               const SizedBox(width: 16),
-              _chartLegend(const Color(0xFFCBD5E1), 'Biaya Operasional'),
+              _chartLegend(_secondaryBarColor, 'Beban Operasional & HPP', _textSecondary),
             ],
           ),
         ],
@@ -173,18 +267,22 @@ class OverviewModule extends StatelessWidget {
     );
   }
 
-  Widget _chartLegend(Color color, String label) {
+  Widget _chartLegend(Color color, String label, Color textColor) {
     return Row(
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
-        const SizedBox(width: 6),
-        Text(label, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
+        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(label, style: GoogleFonts.ibmPlexSans(fontSize: 12, color: textColor)),
       ],
     );
   }
 
-  Widget _buildWarehouseCapacity(AppProvider provider) {
-    final warehouses = <(String, int, Color)>[];
+  Widget _buildWarehouseCapacity(AppProvider provider, bool isDark) {
+    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
+    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+    final Color _warningColor = isDark ? const Color(0xFFF0BD63) : const Color(0xFF9A6200);
+    final Color _bgTrack = isDark ? const Color(0xFF25303A) : const Color(0xFFEDF1F4);
 
     return ErpCard(
       child: Column(
@@ -193,74 +291,115 @@ class OverviewModule extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Utilisasi Kapasitas Gudang', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-              Text('Status Terkini', style: GoogleFonts.inter(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Text(
+                  'Kapasitas Multi-Gudang',
+                  style: GoogleFonts.ibmPlexSans(fontSize: 15, fontWeight: FontWeight.w600, color: _textPrimary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('${provider.warehouses.length} Fasilitas', style: GoogleFonts.ibmPlexSans(fontSize: 12, color: _textSecondary)),
             ],
           ),
-          const SizedBox(height: 16),
-          ...warehouses.map((wh) => _buildWarehouseRow(wh.$1, wh.$2, wh.$3)),
+          const SizedBox(height: 24),
+          ...provider.warehouses.map((wh) {
+            final isFull = wh.utilization >= 80;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          wh.name,
+                          style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('${wh.utilization}% Terisi', style: GoogleFonts.ibmPlexSans(fontSize: 12, fontWeight: FontWeight.w600, color: isFull ? _warningColor : _textSecondary)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: wh.utilization / 100,
+                      minHeight: 6,
+                      backgroundColor: _bgTrack,
+                      valueColor: AlwaysStoppedAnimation<Color>(isFull ? _warningColor : _primaryColor),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildWarehouseRow(String name, int percent, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+  Widget _buildRecentTransactions(BuildContext context, AppProvider provider, bool isDark) {
+    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+    final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+    final Color _headerColor = isDark ? const Color(0xFF25303A) : const Color(0xFFEDF1F4);
+
+    return ErpCard(
+      padding: EdgeInsets.zero,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(name, style: GoogleFonts.inter(fontSize: 13, color: AppColors.secondary)),
-              Text('$percent%', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: percent / 100,
-              backgroundColor: AppColors.borderLight,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              minHeight: 8,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Aktivitas Transaksi Penjualan & Manufaktur Terbaru',
+                    style: GoogleFonts.ibmPlexSans(fontSize: 15, fontWeight: FontWeight.w600, color: _textPrimary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () => provider.switchModule('sales'),
+                  child: Text('Lihat Semua Faktur →', style: GoogleFonts.ibmPlexSans(color: _primaryColor, fontWeight: FontWeight.w600)),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentTransactions(BuildContext context, AppProvider provider) {
-    return ErpCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Daftar Aktivitas & Transaksi Terbaru', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-          const SizedBox(height: 16),
+          Divider(height: 1, color: _borderColor),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
-              headingTextStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
-              dataTextStyle: GoogleFonts.inter(fontSize: 13, color: AppColors.secondary),
-              columnSpacing: 24,
+              headingRowColor: WidgetStateProperty.all(_headerColor),
+              dividerThickness: 1,
+              headingTextStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, color: _textPrimary, fontSize: 13),
+              dataTextStyle: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary),
               columns: const [
                 DataColumn(label: Text('No. Dokumen')),
                 DataColumn(label: Text('Tanggal')),
-                DataColumn(label: Text('Mitra / Rekanan')),
-                DataColumn(label: Text('Kategori')),
-                DataColumn(label: Text('Nominal')),
+                DataColumn(label: Text('Pelanggan / Entitas')),
+                DataColumn(label: Text('Gudang Pengeluaran')),
+                DataColumn(label: Text('Total Transaksi')),
                 DataColumn(label: Text('Status')),
               ],
-              rows: provider.recentTransactions.map((tx) => DataRow(cells: [
-                DataCell(Text(tx.id, style: GoogleFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary))),
-                DataCell(Text(Formatters.date(tx.date))),
-                DataCell(Text(tx.partner, style: GoogleFonts.inter(fontWeight: FontWeight.w600))),
-                DataCell(Text(tx.type)),
-                DataCell(Text(tx.amount, style: const TextStyle(fontWeight: FontWeight.w600))),
-                DataCell(StatusBadge(label: tx.status, type: tx.statusBadge)),
-              ])).toList(),
+              rows: provider.salesInvoices.map((inv) {
+                return DataRow(cells: [
+                  DataCell(Text(inv.id, style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w600, color: _primaryColor))),
+                  DataCell(Text(Formatters.dateShort(inv.date))),
+                  DataCell(Text(inv.customer, style: const TextStyle(fontWeight: FontWeight.w500))),
+                  DataCell(Text(inv.warehouse, style: const TextStyle(fontSize: 12))),
+                  DataCell(Text(Formatters.currency(inv.amount), style: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600))),
+                  DataCell(StatusBadge(label: inv.status, type: inv.statusBadge)),
+                ]);
+              }).toList(),
             ),
           ),
         ],

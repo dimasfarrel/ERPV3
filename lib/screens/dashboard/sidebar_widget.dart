@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/app_theme.dart';
+import '../../data/models/app_models.dart';
 import '../../data/providers/app_provider.dart';
 
 class ErpSidebar extends StatelessWidget {
@@ -10,54 +10,87 @@ class ErpSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
+    final isDark = provider.isDarkMode;
+
+    final Color _baseColor = isDark ? const Color(0xFF1A222A) : const Color(0xFFFFFFFF);
+    final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
 
     return Container(
-      width: 240,
+      width: 250,
       decoration: BoxDecoration(
-        gradient: AppColors.sidebarGradient,
-        boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(4, 0))],
+        color: _baseColor,
+        border: Border(right: BorderSide(color: _borderColor)),
       ),
       child: Column(
         children: [
-          _buildHeader(),
+          _buildBrandHeader(isDark, _borderColor, _textPrimary, _textSecondary),
+          _buildBusinessKicker(provider, isDark, _borderColor, _textPrimary, _textSecondary),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionLabel('Menu Utama'),
-                  _buildNavItem(context, 'overview', 'Dashboard', Icons.grid_view_rounded, provider),
-                  _buildNavItem(context, 'sales', 'Penjualan (Sales)', Icons.attach_money_rounded, provider, badge: null),
-                  _buildNavItem(context, 'purchasing', 'Pembelian (Purchase)', Icons.shopping_cart_outlined, provider, badge: '2 PO'),
-                  _buildNavItem(context, 'inventory', 'Inventori & Stok', Icons.inventory_2_outlined, provider),
-                  _buildNavItem(context, 'accounting', 'Keuangan & Pajak', Icons.description_outlined, provider),
+                  _buildSectionLabel('OPERASIONAL BISNIS', _textSecondary),
+                  _buildNavItem(context, 'overview', 'Dashboard Eksekutif', Icons.dashboard_outlined, provider, isDark),
+                  _buildNavItem(context, 'sales', 'Penjualan & Piutang', Icons.shopping_cart_outlined, provider, isDark),
+                  _buildNavItem(context, 'purchasing', 'Pembelian & Hutang', Icons.local_shipping_outlined, provider, isDark),
+                  _buildNavItem(context, 'inventory', 'Gudang & Stok', Icons.inventory_2_outlined, provider, isDark),
+                  _buildNavItem(context, 'manufacturing', 'Manufaktur & BOM', Icons.precision_manufacturing_outlined, provider, isDark, badge: 'PRO'),
+                  _buildNavItem(context, 'hr', 'SDM & Payroll', Icons.badge_outlined, provider, isDark, badge: 'PRO'),
+                  _buildNavItem(context, 'accounting', 'Keuangan & Akuntansi', Icons.pie_chart_outline, provider, isDark),
                   const SizedBox(height: 16),
-                  _buildSectionLabel('Administrasi'),
-                  _buildNavItem(context, 'reports', 'Laporan Eksekutif', Icons.bar_chart_rounded, provider),
-                  _buildNavItem(context, 'settings', 'Pengaturan Sistem', Icons.settings_outlined, provider),
+                  _buildSectionLabel('ADMINISTRASI & SISTEM', _textSecondary),
+                  _buildNavItem(context, 'reports', 'Laporan Eksekutif', Icons.bar_chart_rounded, provider, isDark),
+                  _buildNavItem(context, 'settings', 'Pengaturan Sistem', Icons.settings_outlined, provider, isDark),
                 ],
               ),
             ),
           ),
-          _buildFooter(context, provider),
+          _buildFooter(context, provider, isDark, _borderColor, _textPrimary, _textSecondary),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+  Widget _buildBrandHeader(bool isDark, Color borderColor, Color textPrimary, Color textSecondary) {
+    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: borderColor)),
+      ),
       child: Row(
         children: [
-          Icon(Icons.layers_rounded, color: AppColors.primary, size: 28),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _primaryColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(Icons.layers, color: Colors.white, size: 18),
+          ),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('iSoft ERP', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
-              Text('System Core', style: GoogleFonts.inter(fontSize: 11, color: AppColors.sidebarText, letterSpacing: 0.2)),
+              Text(
+                'Enterprise ERP',
+                style: GoogleFonts.ibmPlexSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
+                ),
+              ),
+              Text(
+                'Core System',
+                style: GoogleFonts.ibmPlexSans(fontSize: 12, color: textSecondary),
+              ),
             ],
           ),
         ],
@@ -65,47 +98,115 @@ class ErpSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
-      child: Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.sidebarText.withOpacity(0.6), letterSpacing: 0.8)),
+  Widget _buildBusinessKicker(AppProvider provider, bool isDark, Color borderColor, Color textPrimary, Color textSecondary) {
+    final biz = provider.selectedBusiness;
+    final Color _subtleColor = isDark ? const Color(0xFF25303A) : const Color(0xFFEDF1F4);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _subtleColor,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.business, color: textSecondary, size: 16),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  biz?.name ?? 'PT Sinar Surya',
+                  style: GoogleFonts.ibmPlexSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  biz?.code ?? 'Manufaktur',
+                  style: GoogleFonts.ibmPlexSans(fontSize: 11, color: textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildNavItem(BuildContext context, String moduleId, String label, IconData icon, AppProvider provider, {String? badge}) {
+  Widget _buildSectionLabel(String label, Color textSecondary) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      child: Text(
+        label,
+        style: GoogleFonts.ibmPlexSans(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: textSecondary,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(BuildContext context, String moduleId, String label, IconData icon, AppProvider provider, bool isDark, {String? badge}) {
     final isActive = provider.activeModule == moduleId;
+    
+    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+    final Color _subtleColor = isDark ? const Color(0xFF25303A) : const Color(0xFFEDF1F4);
+    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
 
     return GestureDetector(
       onTap: () => provider.switchModule(moduleId),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         margin: const EdgeInsets.only(bottom: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          color: isActive ? _subtleColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isActive ? _primaryColor.withOpacity(0.5) : Colors.transparent,
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: isActive ? Colors.white : AppColors.sidebarText),
-            const SizedBox(width: 10),
+            Icon(icon, size: 18, color: isActive ? _primaryColor : _textSecondary),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  color: isActive ? Colors.white : AppColors.sidebarText),
+                style: GoogleFonts.ibmPlexSans(
+                  fontSize: 13,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                  color: isActive ? _textPrimary : _textSecondary,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             if (badge != null) ...[
               const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isActive ? Colors.white.withOpacity(0.2) : AppColors.primary.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  color: _subtleColor,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(badge, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: isActive ? Colors.white : AppColors.primary)),
+                child: Text(
+                  badge,
+                  style: GoogleFonts.ibmPlexSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: _textSecondary,
+                  ),
+                ),
               ),
             ],
           ],
@@ -114,49 +215,81 @@ class ErpSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildFooter(BuildContext context, AppProvider provider) {
-    final initials = provider.username.length >= 2
-      ? provider.username.substring(0, 2).toUpperCase()
-      : provider.username.toUpperCase();
+  Widget _buildFooter(BuildContext context, AppProvider provider, bool isDark, Color borderColor, Color textPrimary, Color textSecondary) {
+    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFF334155)))),
-      child: Row(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: borderColor)),
+      ),
+      child: Column(
         children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(10)),
-            child: Center(child: Text(initials, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white))),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(provider.username, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white), overflow: TextOverflow.ellipsis),
-                Text('Super Administrator', style: GoogleFonts.inter(fontSize: 11, color: AppColors.sidebarText)),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.logout_rounded, size: 18, color: AppColors.sidebarText),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text('Konfirmasi Logout', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
-                  content: Text('Apakah Anda yakin ingin keluar dari sistem?', style: GoogleFonts.inter()),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-                    ElevatedButton(
-                      onPressed: () { Navigator.pop(ctx); provider.logout(); },
-                      child: const Text('Logout'),
+          // User profile row
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: _primaryColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
+                  child: Text('AD', style: GoogleFonts.ibmPlexSans(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      provider.username,
+                      style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      provider.userRole.label,
+                      style: GoogleFonts.ibmPlexSans(fontSize: 11, color: textSecondary),
                     ),
                   ],
                 ),
-              );
-            },
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout, size: 18, color: Color(0xFFB3363B)),
+                onPressed: () => provider.logout(),
+                tooltip: 'Keluar',
+                splashRadius: 20,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Role selector dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: borderColor),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<UserRole>(
+                value: provider.userRole,
+                isExpanded: true,
+                dropdownColor: isDark ? const Color(0xFF1A222A) : const Color(0xFFFFFFFF),
+                icon: Icon(Icons.arrow_drop_down, color: textSecondary, size: 20),
+                style: GoogleFonts.ibmPlexSans(fontSize: 12, color: textPrimary),
+                onChanged: (newRole) {
+                  if (newRole != null) provider.setUserRole(newRole);
+                },
+                items: UserRole.values.map((role) {
+                  return DropdownMenuItem(
+                    value: role,
+                    child: Text('Peran: ${role.label}'),
+                  );
+                }).toList(),
+              ),
+            ),
           ),
         ],
       ),

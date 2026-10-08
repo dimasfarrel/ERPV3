@@ -13,19 +13,24 @@ class ReportsModule extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Laporan Eksekutif', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.secondary)),
-          Row(children: [
-            OutlinedButton.icon(icon: const Icon(Icons.print, size: 16), label: const Text('Cetak Laporan'), onPressed: () {}),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(icon: const Icon(Icons.download, size: 16), label: const Text('Unduh PDF'), onPressed: () {}),
-          ]),
-        ]),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12, runSpacing: 12,
+          children: [
+            Text('Laporan Eksekutif', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              OutlinedButton.icon(icon: const Icon(Icons.print, size: 16), label: const Text('Cetak Laporan'), onPressed: () => _soon(context)),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(icon: const Icon(Icons.download, size: 16), label: const Text('Unduh PDF'), onPressed: () => _soon(context)),
+            ]),
+          ],
+        ),
         const SizedBox(height: 20),
         GridView.count(
-          crossAxisCount: 4, shrinkWrap: true,
+          crossAxisCount: MediaQuery.of(context).size.width < 900 ? 2 : 4, shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 1.8,
+          crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: MediaQuery.of(context).size.width < 900 ? 1.5 : 1.8,
           children: [
             KpiCard(title: 'Margin Bersih', value: '0%', trend: '0%', trendLabel: '-', trendUp: true, icon: Icons.analytics_outlined, iconColor: AppColors.primary),
             KpiCard(title: 'Perputaran Stok', value: '0x', trend: '0x', trendLabel: '-', trendUp: true, icon: Icons.sync_alt_outlined, iconColor: AppColors.success),
@@ -85,10 +90,12 @@ class ReportsModule extends StatelessWidget {
               topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
               bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (val, _) {
                 final idx = val.toInt();
-                if (idx < months.length) return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(months[idx], style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
-                );
+                if (idx < months.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(months[idx], style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
+                  );
+                }
                 return const SizedBox.shrink();
               })),
             ),
@@ -135,10 +142,15 @@ class ReportsModule extends StatelessWidget {
     return ErpCard(
       padding: EdgeInsets.zero,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
-          child: Text('Ringkasan Keuangan Bulanan'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Text('Ringkasan Keuangan Bulanan', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
         ),
+        if (rows.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+            child: Center(child: Text('Belum ada data untuk ditampilkan.', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted))),
+          ),
         const Divider(height: 20),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -174,4 +186,11 @@ class ReportsModule extends StatelessWidget {
       ]),
     );
   }
+}
+
+/// Feedback untuk aksi yang belum tersedia, supaya tombol tidak terasa "mati".
+void _soon(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Fitur cetak/unduh belum tersedia.'), duration: Duration(seconds: 2)),
+  );
 }

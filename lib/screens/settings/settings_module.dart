@@ -37,7 +37,7 @@ class _SettingsModuleState extends State<SettingsModule> {
                 margin: const EdgeInsets.only(right: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                 decoration: BoxDecoration(
-                  color: isActive ? AppColors.primary : Colors.white,
+                  color: isActive ? AppColors.primary : AppColors.bgCard,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isActive ? AppColors.primary : AppColors.borderLight),
                 ),
@@ -58,6 +58,8 @@ class _SettingsModuleState extends State<SettingsModule> {
       case 'pelanggan': return _CustomersTab();
       case 'vendor': return _VendorsTab();
       case 'gudang': return _WarehouseTab();
+      case 'pengguna': return _UsersTab();
+      case 'bisnis': return _BusinessUnitsTab();
       case 'tema': return const _ThemeTab();
       default: return _ComingSoonTab(label: _tabs[_tabIds.indexOf(_activeTab)]);
     }
@@ -105,7 +107,7 @@ class _ProductsTab extends StatelessWidget {
               DataCell(Text('${p.stock}')),
               DataCell(StatusBadge(label: p.isActive ? 'Aktif' : 'Nonaktif', type: p.isActive ? 'success' : 'muted')),
               DataCell(Row(children: [
-                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.textMuted),
                 IconButton(icon: Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteProduct(p.sku), color: AppColors.danger),
               ])),
             ])).toList(),
@@ -191,7 +193,7 @@ class _CustomersTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('Manajemen Pelanggan', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-            ElevatedButton(onPressed: () {}, child: const Text('+ Tambah Pelanggan')),
+            ElevatedButton(onPressed: () => _showComingSoon(context), child: const Text('+ Tambah Pelanggan')),
           ]),
         ),
         const Divider(height: 20),
@@ -221,7 +223,7 @@ class _CustomersTab extends StatelessWidget {
               DataCell(Text(Formatters.compactCurrency(c.creditLimit))),
               DataCell(StatusBadge(label: c.isActive ? 'Aktif' : 'Nonaktif', type: c.isActive ? 'success' : 'muted')),
               DataCell(Row(children: [
-                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.textMuted),
                 IconButton(icon: Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteCustomer(c.code), color: AppColors.danger),
               ])),
             ])).toList(),
@@ -243,7 +245,7 @@ class _VendorsTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('Manajemen Vendor / Pemasok', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-            ElevatedButton(onPressed: () {}, child: const Text('+ Tambah Vendor')),
+            ElevatedButton(onPressed: () => _showComingSoon(context), child: const Text('+ Tambah Vendor')),
           ]),
         ),
         const Divider(height: 20),
@@ -273,7 +275,7 @@ class _VendorsTab extends StatelessWidget {
               DataCell(Text('${v.leadTimeDays} hari')),
               DataCell(StatusBadge(label: v.isActive ? 'Aktif' : 'Nonaktif', type: v.isActive ? 'success' : 'muted')),
               DataCell(Row(children: [
-                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () {}, color: AppColors.textMuted),
+                IconButton(icon: Icon(Icons.edit_outlined, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.textMuted),
                 IconButton(icon: Icon(Icons.delete_outline, size: 16), onPressed: () => provider.deleteVendor(v.code), color: AppColors.danger),
               ])),
             ])).toList(),
@@ -295,7 +297,7 @@ class _WarehouseTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('Manajemen Gudang', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-            ElevatedButton(onPressed: () {}, child: const Text('+ Tambah Gudang')),
+            ElevatedButton(onPressed: () => _showComingSoon(context), child: const Text('+ Tambah Gudang')),
           ]),
         ),
         const Divider(height: 20),
@@ -442,12 +444,19 @@ class _ThemeTabState extends State<_ThemeTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              OutlinedButton(onPressed: () {}, child: const Text('Kembalikan Default')),
+              OutlinedButton(
+                onPressed: () {
+                  final p = context.read<AppProvider>();
+                  p.setThemeMode(false);
+                  p.setPrimaryColor(const Color(0xFF4F46E5));
+                },
+                child: const Text('Kembalikan Default'),
+              ),
               const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Preferensi tema berhasil disimpan (Visual Preview)'),
+                    content: const Text('Preferensi tema tersimpan otomatis dan akan dipakai saat aplikasi dibuka lagi.'),
                     backgroundColor: AppColors.success,
                     behavior: SnackBarBehavior.floating,
                   ));
@@ -469,7 +478,7 @@ class _ThemeTabState extends State<_ThemeTab> {
         width: 160,
         padding: const EdgeInsets.symmetric(vertical: 24),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primarySurface : Colors.white,
+          color: isActive ? AppColors.primarySurface : AppColors.bgCard,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: isActive ? AppColors.primary : AppColors.borderLight, width: isActive ? 2 : 1),
         ),
@@ -532,4 +541,117 @@ class _ThemeTabState extends State<_ThemeTab> {
       ),
     );
   }
+}
+
+class _UsersTab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ErpCard(
+      padding: EdgeInsets.zero,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Manajemen Pengguna', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+            ElevatedButton(onPressed: () => _showComingSoon(context), child: const Text('+ Tambah Pengguna')),
+          ]),
+        ),
+        const Divider(height: 20),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
+            headingTextStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+            dataTextStyle: GoogleFonts.inter(fontSize: 13),
+            columnSpacing: 40,
+            columns: const [
+              DataColumn(label: Text('Username')),
+              DataColumn(label: Text('Nama Lengkap')),
+              DataColumn(label: Text('Email')),
+              DataColumn(label: Text('Peran / Hak Akses')),
+              DataColumn(label: Text('Status')),
+              DataColumn(label: Text('Aksi')),
+            ],
+            rows: [
+              DataRow(cells: [
+                DataCell(Text('FARREL', style: const TextStyle(fontWeight: FontWeight.w700))),
+                DataCell(Text('Farrel Administrator')),
+                DataCell(Text('farrel@isoft.com')),
+                DataCell(Text('Administrator (Full Access)')),
+                DataCell(StatusBadge(label: 'Aktif', type: 'success')),
+                DataCell(Row(children: [
+                  IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.textMuted),
+                  IconButton(icon: const Icon(Icons.delete_outline, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.danger),
+                ])),
+              ]),
+              DataRow(cells: [
+                DataCell(Text('GUEST', style: const TextStyle(fontWeight: FontWeight.w700))),
+                DataCell(Text('Guest User')),
+                DataCell(Text('guest@isoft.com')),
+                DataCell(Text('Staff / Viewer')),
+                DataCell(StatusBadge(label: 'Aktif', type: 'success')),
+                DataCell(Row(children: [
+                  IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.textMuted),
+                  IconButton(icon: const Icon(Icons.delete_outline, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.danger),
+                ])),
+              ]),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _BusinessUnitsTab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
+    return ErpCard(
+      padding: EdgeInsets.zero,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Manajemen Unit Bisnis (Multi-Company)', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+            ElevatedButton(onPressed: () => _showComingSoon(context), child: const Text('+ Tambah Unit Bisnis')),
+          ]),
+        ),
+        const Divider(height: 20),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: WidgetStateProperty.all(AppColors.bgApp),
+            headingTextStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+            dataTextStyle: GoogleFonts.inter(fontSize: 13),
+            columnSpacing: 40,
+            columns: const [
+              DataColumn(label: Text('Kode / ID')),
+              DataColumn(label: Text('Nama Unit Bisnis')),
+              DataColumn(label: Text('Deskripsi')),
+              DataColumn(label: Text('Status')),
+              DataColumn(label: Text('Aksi')),
+            ],
+            rows: provider.businessEntities.map((b) => DataRow(cells: [
+              DataCell(Text(b.code.isNotEmpty && b.code != '-' ? b.code : b.id.substring(0, 8), style: GoogleFonts.robotoMono(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary))),
+              DataCell(Text(b.name, style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Text(b.description.isEmpty ? '-' : b.description)),
+              DataCell(const StatusBadge(label: 'Aktif', type: 'success')),
+              DataCell(Row(children: [
+                IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.textMuted),
+                IconButton(icon: const Icon(Icons.delete_outline, size: 16), onPressed: () => _showComingSoon(context), color: AppColors.danger),
+              ])),
+            ])).toList(),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Feedback untuk aksi yang belum tersedia, supaya tombol tidak terasa "mati".
+void _showComingSoon(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Fitur ini belum tersedia.'), duration: Duration(seconds: 2)),
+  );
 }

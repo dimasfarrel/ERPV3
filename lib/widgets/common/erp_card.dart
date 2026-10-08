@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 
 class ErpCard extends StatelessWidget {
   final Widget child;
@@ -19,21 +18,26 @@ class ErpCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding ?? const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: backgroundColor ?? AppColors.bgCard,
-        borderRadius: BorderRadius.circular(borderRadius ?? 14),
-        border: border ?? Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final Color _defaultBg = isDark ? const Color(0xFF1A222A) : const Color(0xFFFFFFFF);
+    final Color _defaultBorder = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+
+    return Card(
+      elevation: isDark ? 0 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(borderRadius ?? 8),
+        side: BorderSide(
+          color: isDark ? (_defaultBorder) : const Color(0xFFCED4DA),
+          width: 1,
+        ),
       ),
-      child: child,
+      color: backgroundColor ?? _defaultBg,
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(20),
+        child: child,
+      ),
     );
+
   }
 }
