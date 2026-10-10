@@ -240,17 +240,19 @@ class AccountsPayable {
 // ==========================================
 
 class InventoryItem {
+  final String id; // item_id dari API (kosong untuk data mock)
   final String sku;
   final String name;
   final String category;
   int stockAvailable;
   final int stockMin;
-  final double unitPrice;
+  double unitPrice;
   final double costPrice;
   final String unit;
   final String warehouse;
 
   InventoryItem({
+    this.id = '',
     required this.sku,
     required this.name,
     required this.category,

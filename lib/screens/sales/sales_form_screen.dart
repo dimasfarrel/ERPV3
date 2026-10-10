@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/providers/app_provider.dart';
 import '../../data/models/app_models.dart';
+import '../../data/models/sql_models.dart';
 import '../../widgets/common/erp_card.dart';
 import '../../widgets/common/resizable_panel.dart';
 import '../../widgets/common/resizable_table.dart';
@@ -19,8 +20,8 @@ class SalesFormScreen extends StatefulWidget {
 
 class _SalesFormScreenState extends State<SalesFormScreen> {
   String _activeTab = 'utama';
-  String _selectedCustomer = 'PT Surya Gemilang Kencana';
-  String _selectedWarehouse = 'Gudang Utama Malang (Kepanjen)';
+  String _selectedCustomer = '';
+  String _selectedWarehouse = '';
   final _indukCtrl = TextEditingController(text: 'Jl. Raya Industri No. 5, Kepanjen');
   final _staffCtrl = TextEditingController();
   final _tempoCtrl = TextEditingController(text: '30 HARI');
@@ -48,8 +49,20 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
   double get _ppn => _termasukPpn ? _subtotal * 0.11 : 0;
   double get _grandTotal => _subtotal + _ppn;
 
-  final _customers = ['PT Surya Gemilang Kencana', 'PT Bintang Mitra Sejahtera', 'CV Cipta Karya Mandiri', 'Toko Makmur Sentosa Malang'];
-  final _warehouses = ['Gudang Utama Malang (Kepanjen)', 'Gudang Transit Singosari', 'Gudang Distribusi Retail'];
+  List<String> get _customers {
+    final list = context.read<AppProvider>().customers.map((c) => c.companyName).toList();
+    return list.isNotEmpty ? list : [''];
+  }
+
+  List<String> get _warehouses {
+    final list = context.read<AppProvider>().warehouses.map((w) => w.name).toList();
+    return list.isNotEmpty ? list : [''];
+  }
+
+  List<String> get _staffs {
+    final list = context.read<AppProvider>().employees.map((e) => e.name).toList();
+    return list.isNotEmpty ? list : [''];
+  }
 
   @override
   void dispose() {
@@ -72,8 +85,8 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     _shipDateCtrl.text = _fmtDate(now.add(const Duration(days: 2)));
     _dueDateCtrl.text = _fmtDate(now.add(const Duration(days: 30)));
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<AppProvider>();
       if (widget.targetId != null) {
-        final provider = context.read<AppProvider>();
         final existing = provider.salesInvoices.where((i) => i.id == widget.targetId).firstOrNull;
         if (existing != null) {
           setState(() {
@@ -91,6 +104,13 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
             ];
             _items[0].updateJumlah();
           });
+        }
+      } else {
+        if (provider.customers.isNotEmpty) {
+          setState(() => _selectedCustomer = provider.customers.first.companyName);
+        }
+        if (provider.warehouses.isNotEmpty) {
+          setState(() => _selectedWarehouse = provider.warehouses.first.name);
         }
       }
     });
@@ -250,9 +270,9 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                   const SizedBox(height: 20),
                   _buildF3Search('Nama Pelanggan', initial: _selectedCustomer, options: _customers, onChanged: (v) => _selectedCustomer = v, isDark: isDark),
                   const SizedBox(height: 16),
-                  _buildF3Search('Perusahaan Induk', initial: _indukCtrl.text, isDark: isDark),
+                  _buildF3Search('Perusahaan Induk', initial: _indukCtrl.text, options: _customers, onChanged: (v) => _indukCtrl.text = v, isDark: isDark),
                   const SizedBox(height: 16),
-                  _buildF3Search('Sales Staff', initial: _staffCtrl.text, isDark: isDark),
+                  _buildF3Search('Sales Staff', initial: _staffCtrl.text, options: _staffs, onChanged: (v) => _staffCtrl.text = v, isDark: isDark),
                   const SizedBox(height: 16),
                   _overlayField('Termin Pembayaran', child: Row(children: [
                     Expanded(child: TextField(controller: _tempoCtrl, decoration: _inputDeco('30 HARI...', isDark), style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary))),
@@ -680,7 +700,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: const Color(0xFFE55353), behavior: SnackBarBehavior.floating));
   }
 
-  void _commit({required String status, required String message}) {
+  void _commit({required String status, required String message}) async {
     final inv = SalesInvoice(
       id: _nomorNotaCtrl.text.trim(),
       date: DateTime.tryParse(_dateCtrl.text) ?? _existing?.date ?? DateTime.now(),
@@ -689,12 +709,36 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
       amount: _grandTotal,
       status: status,
     );
+
+    // Create Trans object mapping from the form
+    final trans = Trans(
+      transNomornota: inv.id,
+      transEntrydate: (inv.date.millisecondsSinceEpoch / 1000).round(),
+      transText: inv.customer,
+      masterwarehouseId: inv.warehouse,
+      transNilaikurs: inv.amount,
+      transType: status == 'Lunas' ? 1 : 0, 
+    );
+
+    // Create Transline objects from items
+    final lines = _items.map((item) => Transline(
+      translineKeterangan: item.produkCtrl.text,
+      translineQty: double.tryParse(item.qtyCtrl.text) ?? 0.0,
+      translinePrice: double.tryParse(item.hargaCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+      translineTotaldiscvalue: double.tryParse(item.discCtrl.text) ?? 0.0,
+      translineNetvalue: item.jumlah,
+    )).toList();
+
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
       backgroundColor: const Color(0xFF28A745),
       behavior: SnackBarBehavior.floating,
     ));
+    
+    // Save to local and backend
     context.read<AppProvider>().addSalesInvoice(inv);
+    context.read<AppProvider>().saveSalesTransaction(trans, lines: lines);
+    
     context.read<AppProvider>().switchModule('sales');
     widget.onBack();
   }

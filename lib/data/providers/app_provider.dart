@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_models.dart';
+import '../models/sql_models.dart';
 import '../../core/theme/app_theme.dart';
 
 enum AppView { login, business, costCenter, gudang, dashboard }
@@ -91,6 +92,8 @@ class AppProvider extends ChangeNotifier {
   List<StockTransfer> stockTransfers = [];
   List<SalesInvoice> salesInvoices = [];
   List<PurchaseOrder> purchaseOrders = [];
+
+  List<Trans> salesTransList = [];
 
   // Lite Mode Data
   List<LiteCartItem> liteCart = [];
@@ -786,6 +789,16 @@ class AppProvider extends ChangeNotifier {
         _showError(context, 'Store ini belum punya gudang.');
         return;
       }
+      
+      // Fetch customers and vendors globally so they are ready for forms
+      await fetchPartners(14);
+      await fetchPartners(2);
+      await fetchEmployees(); // Fetch staff data
+      
+      // Fetch historical transactions
+      await fetchSalesTransactions();
+      await fetchPurchaseTransactions();
+      
       _currentView = AppView.gudang;
     } finally {
       _isLoading = false;
@@ -823,6 +836,246 @@ class AppProvider extends ChangeNotifier {
     _selectedWarehouse = wh;
     _currentView = AppView.dashboard;
     notifyListeners();
+    
+    // Otomatis tarik data barang untuk gudang yang dipilih
+    if (_isUsingLiveDatabase) {
+      fetchItemsForWarehouse();
+    }
+  }
+
+  Future<void> fetchItemsForWarehouse() async {
+    if (_selectedWarehouse == null) return;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final res = await _api().get('/items/trans', queryParameters: {
+        'warehouse_id': _selectedWarehouse!.id,
+      });
+      if (res.data['success'] == true) {
+        final list = res.data['data'];
+        if (list is List) {
+          inventoryItems = list.map<InventoryItem>((i) => InventoryItem(
+            id: i['item_id']?.toString() ?? '',
+            sku: i['item_code']?.toString() ?? '-',
+            name: i['item_name']?.toString() ?? '-',
+            category: i['category_name']?.toString() ?? 'Umum',
+            stockAvailable: int.tryParse(i['stock_quantity']?.toString() ?? '0') ?? 0,
+            stockMin: int.tryParse(i['min_sale_quantity']?.toString() ?? '0') ?? 0,
+            unitPrice: 0.0, // diisi oleh fetchPricesForItems()
+            costPrice: 0.0,
+            unit: i['base_uom_name']?.toString() ?? 'PCS',
+            warehouse: _selectedWarehouse!.name,
+          )).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetchItems: ${_dioMsg(e)}');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+
+    // Barang sudah tampil, sekarang isi harganya di belakang layar
+    await fetchPricesForItems();
+  }
+
+  /// Kategori customer default untuk menampilkan harga jual di daftar barang.
+  /// (Diambil dari contoh request Postman. Ganti kalau perlu kategori lain.)
+  static const String defaultPartnerCategoryId = 'aeb60bb1-e1d8-11ef-976d-6c3be5bcbf18';
+
+  /// GET /prices?item_id=&partnercategory_id=&store_id=&qty=1 untuk tiap barang.
+  Future<void> fetchPricesForItems({String partnerCategoryId = defaultPartnerCategoryId}) async {
+    final storeId = _selectedCostCenter?.id;
+    if (storeId == null || storeId.isEmpty) return;
+
+    final items = inventoryItems.where((it) => it.id.isNotEmpty).toList();
+    const batchSize = 5; // biar server nggak dibanjiri request sekaligus
+
+    for (var start = 0; start < items.length; start += batchSize) {
+      final batch = items.skip(start).take(batchSize);
+      await Future.wait(batch.map((item) async {
+        try {
+          final res = await _api().get('/prices', queryParameters: {
+            'item_id': item.id,
+            'partnercategory_id': partnerCategoryId,
+            'store_id': storeId,
+            'qty': 1,
+          });
+          final data = res.data['data'];
+          if (res.data['success'] == true && data is List && data.isNotEmpty) {
+            item.unitPrice = (data.first['unit_price'] as num?)?.toDouble() ?? 0.0;
+          }
+        } catch (e) {
+          debugPrint('Error harga ${item.sku}: ${_dioMsg(e)}');
+        }
+      }));
+      notifyListeners(); // update tabel per batch
+    }
+  }
+
+  Future<void> fetchPartners(int prefixValue) async {
+    // Contoh template fungsi untuk ngambil list supplier/customer (pakai prefix_value)
+    // prefixValue: 14 = Sales (Customer), 2 = Purchase (Supplier)
+    try {
+      final res = await _api().get('/partners/trans', queryParameters: {
+        'prefix_value': prefixValue,
+      });
+      if (res.data['success'] == true) {
+        final list = res.data['data'];
+        if (list is List) {
+          if (prefixValue == 14) {
+            customers = list.map<CustomerModel>((c) => CustomerModel(
+              code: c['partner_code']?.toString() ?? '',
+              companyName: c['partner_name']?.toString() ?? '',
+              contact: '-',
+              city: '-',
+              type: c['partnercategory_code']?.toString() ?? 'UMUM',
+              creditLimit: 0,
+            )).toList();
+          } else if (prefixValue == 2) {
+            vendors = list.map<VendorModel>((v) => VendorModel(
+              code: v['partner_code']?.toString() ?? '',
+              name: v['partner_name']?.toString() ?? '',
+              contact: '-',
+              city: '-',
+              supplyCategory: v['partnercategory_code']?.toString() ?? 'UMUM',
+              leadTimeDays: (v['due_value'] as num?)?.toInt() ?? 0,
+            )).toList();
+          }
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetchPartners: ${_dioMsg(e)}');
+    }
+  }
+
+  Future<void> fetchEmployees() async {
+    try {
+      // Coba hit endpoint '/employees' atau '/staff'
+      // Sesuaikan URL-nya jika di golang backend namanya beda (misal: /master-employee)
+      final res = await _api().get('/employees'); 
+      if (res.data['success'] == true) {
+        final list = res.data['data'];
+        if (list is List) {
+          employees = list.map<Employee>((e) => Employee(
+            id: e['employee_id']?.toString() ?? e['id']?.toString() ?? '',
+            nip: e['employee_nip']?.toString() ?? e['nip']?.toString() ?? '',
+            name: e['employee_name']?.toString() ?? e['name']?.toString() ?? 'Staff',
+            position: e['position']?.toString() ?? '-',
+            department: e['department']?.toString() ?? '-',
+            status: e['status']?.toString() ?? 'Tetap',
+            joinDate: DateTime.tryParse(e['join_date']?.toString() ?? '') ?? DateTime.now(),
+            baseSalary: double.tryParse(e['base_salary']?.toString() ?? '0') ?? 0,
+            allowance: double.tryParse(e['allowance']?.toString() ?? '0') ?? 0,
+            email: e['email']?.toString() ?? '-',
+            phone: e['phone']?.toString() ?? '-',
+            bankAccount: e['bank_account']?.toString() ?? '-',
+          )).toList();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetchEmployees: ${_dioMsg(e)}');
+    }
+  }
+
+  Future<void> fetchSalesTransactions() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final res = await _api().get('/trans', queryParameters: {
+        // 'trans_type': 3, // specify trans_type here if needed for sales
+      });
+      if (res.data['success'] == true) {
+        final list = res.data['data'];
+        if (list is List) {
+          final transList = list.map((e) => Trans.fromJson(e)).toList();
+          salesInvoices = transList.map((t) => SalesInvoice(
+            id: t.transNomornota ?? t.transId ?? '-',
+            date: t.transEntrydate != null ? DateTime.fromMillisecondsSinceEpoch(t.transEntrydate! * 1000) : DateTime.now(),
+            customer: t.masterpartnerId ?? t.transText ?? 'Pelanggan Umum',
+            warehouse: t.masterwarehouseId ?? 'Gudang Utama',
+            amount: t.transNilaikurs ?? 0.0, 
+            status: t.transType == 1 ? 'Lunas' : 'Belum Bayar', 
+          )).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetchSalesTransactions: ${_dioMsg(e)}');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveSalesTransaction(Trans trans, {List<Transline>? lines}) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final data = trans.toJson();
+      if (lines != null) {
+        data['lines'] = lines.map((l) => l.toJson()).toList();
+      }
+      final res = await _api().post('/trans', data: data);
+      if (res.data['success'] == true) {
+        await fetchSalesTransactions();
+      }
+    } catch (e) {
+      debugPrint('Error saveSalesTransaction: ${_dioMsg(e)}');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchPurchaseTransactions() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final res = await _api().get('/trans', queryParameters: {
+         'trans_type': 2, // assume trans_type 2 is for purchases, adjust if needed
+      });
+      if (res.data['success'] == true) {
+        final list = res.data['data'];
+        if (list is List) {
+          final transList = list.map((e) => Trans.fromJson(e)).toList();
+          purchaseOrders = transList.map((t) => PurchaseOrder(
+            id: t.transNomornota ?? t.transId ?? '-',
+            date: t.transEntrydate != null ? DateTime.fromMillisecondsSinceEpoch(t.transEntrydate! * 1000) : DateTime.now(),
+            vendor: t.masterpartnerId ?? t.transText ?? 'Supplier Umum',
+            warehouse: t.masterwarehouseId ?? 'Gudang Utama',
+            amount: t.transNilaikurs ?? 0.0, 
+            status: t.transType == 1 ? 'Lunas' : 'Belum Bayar', 
+          )).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetchPurchaseTransactions: ${_dioMsg(e)}');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> savePurchaseTransaction(Trans trans, {List<Transline>? lines}) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final data = trans.toJson();
+      if (lines != null) {
+        data['lines'] = lines.map((l) => l.toJson()).toList();
+      }
+      final res = await _api().post('/trans', data: data);
+      if (res.data['success'] == true) {
+        await fetchPurchaseTransactions();
+      }
+    } catch (e) {
+      debugPrint('Error savePurchaseTransaction: ${_dioMsg(e)}');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void addInventoryItem(InventoryItem item) {

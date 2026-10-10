@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/providers/app_provider.dart';
 import '../../data/models/app_models.dart';
+import '../../data/models/sql_models.dart';
 import '../../widgets/common/erp_card.dart';
 import '../../widgets/common/resizable_panel.dart';
 import '../../widgets/common/resizable_table.dart';
@@ -19,8 +20,8 @@ class PurchasingFormScreen extends StatefulWidget {
 
 class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
   String _activeTab = 'utama';
-  String _selectedVendor = 'PT Supplier Gemilang Kencana';
-  String _selectedWarehouse = 'Gudang Utama Malang (Kepanjen)';
+  String _selectedVendor = '';
+  String _selectedWarehouse = '';
   final _indukCtrl = TextEditingController(text: 'Jl. Industri Raya No. 12');
   final _staffCtrl = TextEditingController();
   final _tempoCtrl = TextEditingController(text: '30 HARI');
@@ -48,8 +49,20 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
   double get _ppn => _termasukPpn ? _subtotal * 0.11 : 0;
   double get _grandTotal => _subtotal + _ppn;
 
-  final _vendors = ['PT Supplier Gemilang Kencana', 'PT Vendor Mitra Sejahtera', 'CV Pabrik Karya Mandiri'];
-  final _warehouses = ['Gudang Utama Malang (Kepanjen)', 'Gudang Transit Singosari', 'Gudang Distribusi Retail'];
+  List<String> get _vendors {
+    final list = context.read<AppProvider>().vendors.map((v) => v.name).toList();
+    return list.isNotEmpty ? list : [''];
+  }
+
+  List<String> get _warehouses {
+    final list = context.read<AppProvider>().warehouses.map((w) => w.name).toList();
+    return list.isNotEmpty ? list : [''];
+  }
+
+  List<String> get _staffs {
+    final list = context.read<AppProvider>().employees.map((e) => e.name).toList();
+    return list.isNotEmpty ? list : [''];
+  }
 
   @override
   void dispose() {
@@ -72,8 +85,8 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
     _shipDateCtrl.text = _fmtDate(now.add(const Duration(days: 2)));
     _dueDateCtrl.text = _fmtDate(now.add(const Duration(days: 30)));
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<AppProvider>();
       if (widget.targetId != null) {
-        final provider = context.read<AppProvider>();
         final existing = provider.purchaseOrders.where((p) => p.id == widget.targetId).firstOrNull;
         if (existing != null) {
           setState(() {
@@ -90,6 +103,13 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
               ..pajak = '-');
             _items[0].updateJumlah();
           });
+        }
+      } else {
+        if (provider.vendors.isNotEmpty) {
+          setState(() => _selectedVendor = provider.vendors.first.name);
+        }
+        if (provider.warehouses.isNotEmpty) {
+          setState(() => _selectedWarehouse = provider.warehouses.first.name);
         }
       }
     });
@@ -247,11 +267,11 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  _buildF3Search('Nama Vendor / Pemasok', initial: _selectedVendor, options: _vendors, onChanged: (v) => _selectedVendor = v, isDark: isDark),
+                  _buildF3Search('Nama Supplier', initial: _selectedVendor, options: _vendors, onChanged: (v) => _selectedVendor = v, isDark: isDark),
                   const SizedBox(height: 16),
-                  _buildF3Search('Perusahaan Induk', initial: _indukCtrl.text, isDark: isDark),
+                  _buildF3Search('Perusahaan Induk', initial: _indukCtrl.text, options: _vendors, onChanged: (v) => _indukCtrl.text = v, isDark: isDark),
                   const SizedBox(height: 16),
-                  _buildF3Search('Staff Pembelian', initial: _staffCtrl.text, isDark: isDark),
+                  _buildF3Search('Staff Pembelian', initial: _staffCtrl.text, options: _staffs, onChanged: (v) => _staffCtrl.text = v, isDark: isDark),
                   const SizedBox(height: 16),
                   _overlayField('Termin Pembayaran', child: Row(children: [
                     Expanded(child: TextField(controller: _tempoCtrl, decoration: _inputDeco('30 HARI...', isDark), style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary))),
@@ -688,12 +708,36 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
       amount: _grandTotal,
       status: status,
     );
+
+    // Create Trans object mapping from the form
+    final trans = Trans(
+      transNomornota: inv.id,
+      transEntrydate: (inv.date.millisecondsSinceEpoch / 1000).round(),
+      transText: inv.vendor,
+      masterwarehouseId: inv.warehouse,
+      transNilaikurs: inv.amount,
+      transType: 2, // 2 for purchases
+    );
+
+    // Create Transline objects from items
+    final lines = _items.map((item) => Transline(
+      translineKeterangan: item.produkCtrl.text,
+      translineQty: double.tryParse(item.qtyCtrl.text) ?? 0.0,
+      translinePrice: double.tryParse(item.hargaCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+      translineTotaldiscvalue: double.tryParse(item.discCtrl.text) ?? 0.0,
+      translineNetvalue: item.jumlah,
+    )).toList();
+
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
       backgroundColor: const Color(0xFF28A745),
       behavior: SnackBarBehavior.floating,
     ));
+    
+    // Save to local and backend
     context.read<AppProvider>().addPurchaseOrder(inv);
+    context.read<AppProvider>().savePurchaseTransaction(trans, lines: lines);
+    
     context.read<AppProvider>().switchModule('purchasing');
     widget.onBack();
   }
