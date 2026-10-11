@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_models.dart';
 import '../models/sql_models.dart';
+import '../models/master_models.dart';
 import '../../core/theme/app_theme.dart';
 
 enum AppView { login, business, costCenter, gudang, dashboard }
@@ -74,6 +75,16 @@ class AppProvider extends ChangeNotifier {
   List<Map<String, dynamic>> roleGroups = [];
   List<Map<String, dynamic>> prefixes = [];
 
+  /// Cari prefix berdasarkan trans_type (= prefix_value), mis. TransType.salesOrder.
+  /// Isinya: prefix_id (UUID per business), prefix_code, prefix_name, prefix_value.
+  /// Nanti dipakai buat isi `masterprefix_id` + `trans_type` waktu save transaksi.
+  Map<String, dynamic>? prefixByType(int transType) {
+    for (final p in prefixes) {
+      if ((p['prefix_value'] as num?)?.toInt() == transType) return p;
+    }
+    return null;
+  }
+
   // ==================== Rich Enterprise Data ====================
 
   List<BusinessEntity> businessEntities = [];
@@ -95,14 +106,35 @@ class AppProvider extends ChangeNotifier {
 
   List<Trans> salesTransList = [];
 
+  // Master data dari server (API v2) dengan default fallback untuk demo/offline
+  List<StaffModel> staffs = [];
+  List<DueModel> dues = [
+    DueModel(id: 'termin-0', code: '0', name: 'Termin 0 hari', days: 0),
+    DueModel(id: 'termin-14', code: '14', name: 'Termin 14 hari', days: 14),
+    DueModel(id: 'termin-30', code: '30', name: 'Termin 30 hari', days: 30),
+    DueModel(id: 'termin-60', code: '60', name: 'Termin 60 hari', days: 60),
+  ];
+  List<DeskModel> desks = [];
+  List<TaxModel> taxes = [
+    TaxModel(id: 'tax-ppn-11', code: 'PPN11', name: 'PPN 11%', rate: 11),
+    TaxModel(id: 'tax-non', code: 'NON', name: 'Bebas Pajak (0%)', rate: 0),
+  ];
+  List<PaymentMethodModel> paymentMethods = [
+    PaymentMethodModel(id: 'pm-1', code: 'CASH', name: 'Tunai / Cash'),
+    PaymentMethodModel(id: 'pm-2', code: 'BCA', name: 'Transfer Bank BCA'),
+    PaymentMethodModel(id: 'pm-3', code: 'MANDIRI', name: 'Transfer Bank Mandiri'),
+    PaymentMethodModel(id: 'pm-4', code: 'QRIS', name: 'QRIS'),
+    PaymentMethodModel(id: 'pm-5', code: 'GIRO', name: 'Giro / Cek'),
+  ];
+  Map<String, List<ItemUomModel>> itemUomsCache = {};
+
   // Lite Mode Data
   List<LiteCartItem> liteCart = [];
   List<LiteCashTransaction> liteCashTransactions = [];
   List<LiteDebt> liteDebts = [];
 
   AppProvider() {
-    // Keep initial selections empty until user steps through the multi-tier flow
-    // (Unit Bisnis -> Cost Center -> Gudang)
+    _loadLocalTransactions();
   }
 
   // ==================== Mode & Edition Controls ====================
@@ -181,6 +213,34 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Load UI preferences from server
+  Future<void> loadUiSettings() async {
+    try {
+      final response = await _api().get('/ui-settings');
+      if (response.statusCode == 200) {
+        final data = response.data['data'] ?? {};
+        final dark = data['darkMode'] as bool?;
+        final accent = data['accentColor'] as int?;
+        if (dark != null) setThemeMode(dark);
+        if (accent != null) setPrimaryColor(Color(accent));
+      }
+    } catch (e) {
+      _showError(null, 'Failed to load UI settings: ${_dioMsg(e)}');
+    }
+  }
+
+  // Save UI preferences to server
+  Future<void> saveUiSettings() async {
+    try {
+      await _api().post('/ui-settings', data: {
+        'darkMode': _isDarkMode,
+        'accentColor': _primaryColor.value,
+      });
+    } catch (_) {
+      // Silently ignore save errors to avoid disrupting UI
+    }
+  }
+
   void setSearch(String q) {
     _searchQuery = q;
     notifyListeners();
@@ -232,6 +292,7 @@ class AppProvider extends ChangeNotifier {
 
   void addBom(BillOfMaterials bom) {
     boms.insert(0, bom);
+    // TODO: persist ke server setelah endpoint BOM dikonfirmasi backend (tabel prod/prodline)
     notifyListeners();
   }
 
@@ -239,6 +300,7 @@ class AppProvider extends ChangeNotifier {
 
   void addEmployee(Employee emp) {
     employees.insert(0, emp);
+    // TODO: persist ke server setelah endpoint employee dikonfirmasi backend
     notifyListeners();
   }
 
@@ -457,9 +519,7 @@ class AppProvider extends ChangeNotifier {
         _username = respData['user']?['username'] ?? username;
         _ip = ip;
         _port = port;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('server_ip', ip);
-        await prefs.setString('server_port', port);
+// Removed local SharedPreferences storage; UI settings are now persisted via server API.
         _accessToken = response.data['access_token'] ?? respData['access_token'] ?? '';
         _refreshToken = response.data['refresh_token'] ?? respData['refresh_token'] ?? '';
 
@@ -791,13 +851,19 @@ class AppProvider extends ChangeNotifier {
       }
       
       // Fetch customers and vendors globally so they are ready for forms
-      await fetchPartners(14);
-      await fetchPartners(2);
-      await fetchEmployees(); // Fetch staff data
-      
-      // Fetch historical transactions
-      await fetchSalesTransactions();
-      await fetchPurchaseTransactions();
+      await fetchPartners(TransType.salesOrder);    // customer
+      await fetchPartners(TransType.purchaseOrder); // supplier
+      await Future.wait([
+        fetchEmployees(),       // GET /staffs/trans
+        fetchDues(),            // GET /dues/trans
+        fetchDesks(),           // GET /desks/trans
+        fetchTaxes(),           // GET /taxes/trans
+        fetchPaymentMethods(),  // GET /trans/payment/method
+      ]);
+
+      // NOTE: fetchSalesTransactions()/fetchPurchaseTransactions() sengaja tidak
+      // dipanggil: GET /trans balas 404 di server asli. Aktifkan lagi setelah
+      // backend kasih endpoint riwayat transaksi yang benar.
       
       _currentView = AppView.gudang;
     } finally {
@@ -835,6 +901,7 @@ class AppProvider extends ChangeNotifier {
   void selectWarehouse(WarehouseEntity wh) {
     _selectedWarehouse = wh;
     _currentView = AppView.dashboard;
+    _loadLocalTransactions();
     notifyListeners();
     
     // Otomatis tarik data barang untuk gudang yang dipilih
@@ -915,7 +982,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> fetchPartners(int prefixValue) async {
     // Contoh template fungsi untuk ngambil list supplier/customer (pakai prefix_value)
-    // prefixValue: 14 = Sales (Customer), 2 = Purchase (Supplier)
+    // prefixValue = trans_type: TransType.salesOrder (14) = Customer, TransType.purchaseOrder (2) = Supplier
     try {
       final res = await _api().get('/partners/trans', queryParameters: {
         'prefix_value': prefixValue,
@@ -923,8 +990,9 @@ class AppProvider extends ChangeNotifier {
       if (res.data['success'] == true) {
         final list = res.data['data'];
         if (list is List) {
-          if (prefixValue == 14) {
+          if (prefixValue == TransType.salesOrder) {
             customers = list.map<CustomerModel>((c) => CustomerModel(
+              id: c['partner_id']?.toString() ?? c['id']?.toString() ?? '',
               code: c['partner_code']?.toString() ?? '',
               companyName: c['partner_name']?.toString() ?? '',
               contact: '-',
@@ -932,8 +1000,9 @@ class AppProvider extends ChangeNotifier {
               type: c['partnercategory_code']?.toString() ?? 'UMUM',
               creditLimit: 0,
             )).toList();
-          } else if (prefixValue == 2) {
+          } else if (prefixValue == TransType.purchaseOrder) {
             vendors = list.map<VendorModel>((v) => VendorModel(
+              id: v['partner_id']?.toString() ?? v['id']?.toString() ?? '',
               code: v['partner_code']?.toString() ?? '',
               name: v['partner_name']?.toString() ?? '',
               contact: '-',
@@ -950,33 +1019,172 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  /// GET /staffs/trans -> staff/sales. Disimpan ke [staffs] dan juga dipetakan
+  /// ke [employees] supaya halaman SDM yang sudah ada tetap terisi.
+  /// (Endpoint lama '/employees' tidak ada di server, balas 404.)
   Future<void> fetchEmployees() async {
     try {
-      // Coba hit endpoint '/employees' atau '/staff'
-      // Sesuaikan URL-nya jika di golang backend namanya beda (misal: /master-employee)
-      final res = await _api().get('/employees'); 
+      final res = await _api().get('/staffs/trans');
       if (res.data['success'] == true) {
         final list = res.data['data'];
         if (list is List) {
-          employees = list.map<Employee>((e) => Employee(
-            id: e['employee_id']?.toString() ?? e['id']?.toString() ?? '',
-            nip: e['employee_nip']?.toString() ?? e['nip']?.toString() ?? '',
-            name: e['employee_name']?.toString() ?? e['name']?.toString() ?? 'Staff',
-            position: e['position']?.toString() ?? '-',
-            department: e['department']?.toString() ?? '-',
-            status: e['status']?.toString() ?? 'Tetap',
-            joinDate: DateTime.tryParse(e['join_date']?.toString() ?? '') ?? DateTime.now(),
-            baseSalary: double.tryParse(e['base_salary']?.toString() ?? '0') ?? 0,
-            allowance: double.tryParse(e['allowance']?.toString() ?? '0') ?? 0,
-            email: e['email']?.toString() ?? '-',
-            phone: e['phone']?.toString() ?? '-',
-            bankAccount: e['bank_account']?.toString() ?? '-',
+          staffs = list.map((e) => StaffModel.fromJson(Map<String, dynamic>.from(e))).toList();
+          employees = staffs.map<Employee>((s) => Employee(
+            id: s.id,
+            nip: s.code,
+            name: s.name,
+            position: s.categoryName.isNotEmpty ? s.categoryName : s.categoryCode,
+            department: s.categoryCode.isNotEmpty ? s.categoryCode : '-',
+            status: 'Aktif',
+            joinDate: DateTime.now(), // server belum kirim tanggal masuk
+            baseSalary: 0,
+            allowance: 0,
+            email: '-',
+            phone: '-',
+            bankAccount: '-',
           )).toList();
           notifyListeners();
         }
       }
     } catch (e) {
-      debugPrint('Error fetchEmployees: ${_dioMsg(e)}');
+      debugPrint('Error fetchEmployees (/staffs/trans): ${_dioMsg(e)}');
+    }
+  }
+
+  /// GET /termin/trans (api/v2/termin/trans) atau fallback ke /dues/trans -> termin pembayaran (contoh: Termin 30 hari).
+  Future<void> fetchDues() async {
+    try {
+      Response? res;
+      try {
+        res = await _api().get('/termin/trans');
+      } catch (e) {
+        try {
+          res = await _api().get('/dues/trans');
+        } catch (_) {}
+      }
+      if (res != null && res.data != null) {
+        final list = res.data['data'];
+        if (res.data['success'] == true && list is List && list.isNotEmpty) {
+          dues = list.map((e) => DueModel.fromJson(Map<String, dynamic>.from(e))).toList();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('[AppProvider] fetchDues: ${_dioMsg(e)} (menggunakan data default fallback)');
+    }
+  }
+
+  /// GET /desks/trans -> daftar meja.
+  Future<void> fetchDesks() async {
+    try {
+      final res = await _api().get('/desks/trans');
+      final list = res.data['data'];
+      if (res.data['success'] == true && list is List) {
+        desks = list.map((e) => DeskModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetchDesks: ${_dioMsg(e)}');
+    }
+  }
+
+  /// GET /supports?entity_id=&type= -> data pendukung sebuah entity.
+  /// Arti `type` belum dikonfirmasi backend (contoh Postman pakai type=2),
+  /// jadi dikembalikan mentah dan tidak dipanggil otomatis.
+  Future<List<Map<String, dynamic>>> fetchSupports(String entityId, {int type = 2}) async {
+    try {
+      final res = await _api().get('/supports', queryParameters: {
+        'entity_id': entityId,
+        'type': type,
+      });
+      final list = res.data['data'];
+      if (res.data['success'] == true && list is List) {
+        return list.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+    } catch (e) {
+      debugPrint('Error fetchSupports: ${_dioMsg(e)}');
+    }
+    return [];
+  }
+
+  /// 1. GET /uoms/item?item_id=...
+  /// Mengambil daftar konversi satuan untuk item tertentu (misal: PCS, LSN, GROSS).
+  Future<List<ItemUomModel>> fetchItemUoms(String itemId) async {
+    if (itemId.isEmpty) return [];
+    if (itemUomsCache.containsKey(itemId)) {
+      return itemUomsCache[itemId]!;
+    }
+    try {
+      final res = await _api().get('/uoms/item', queryParameters: {'item_id': itemId});
+      final list = res.data['data'];
+      if (res.data['success'] == true && list is List) {
+        final uoms = list.map((e) => ItemUomModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        itemUomsCache[itemId] = uoms;
+        notifyListeners();
+        return uoms;
+      }
+    } catch (e) {
+      debugPrint('Error fetchItemUoms ($itemId): ${_dioMsg(e)}');
+    }
+    return [];
+  }
+
+  /// 2. GET /taxes/trans
+  /// Mengambil data jenis pajak untuk transaksi.
+  Future<void> fetchTaxes() async {
+    try {
+      final res = await _api().get('/taxes/trans');
+      final list = res.data['data'];
+      if (res.data['success'] == true && list is List && list.isNotEmpty) {
+        taxes = list.map((e) => TaxModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[AppProvider] fetchTaxes: ${_dioMsg(e)} (menggunakan data default fallback)');
+    }
+  }
+
+  /// 3. GET /trans/payment/method
+  /// Mengambil daftar metode pembayaran transaksi (berlaku untuk SO, SI, PO, PI).
+  Future<void> fetchPaymentMethods() async {
+    try {
+      final res = await _api().get('/trans/payment/method');
+      final list = res.data['data'];
+      if (res.data['success'] == true && list is List && list.isNotEmpty) {
+        paymentMethods = list.map((e) => PaymentMethodModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[AppProvider] fetchPaymentMethods: ${_dioMsg(e)} (menggunakan data default fallback)');
+    }
+  }
+
+  /// 4. POST /trans
+  /// Simpan / insert transaksi baru ke database menggunakan format payload resmi API v2.
+  Future<bool> createTransaction(TransactionCreateRequest req, {BuildContext? context}) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final res = await _api().post('/trans', data: req.toJson());
+      if (res.data['success'] == true) {
+        if (context != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Transaksi berhasil disimpan ke server!'),
+            backgroundColor: Color(0xFF28A745),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+        return true;
+      } else {
+        _showError(context, 'Gagal simpan transaksi: ${res.data['message'] ?? res.data}');
+        return false;
+      }
+    } catch (e) {
+      _showError(context, 'Error simpan transaksi: ${_dioMsg(e)}');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -1009,20 +1217,77 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> saveSalesTransaction(Trans trans, {List<Transline>? lines}) async {
+  Future<void> saveSalesTransaction(Trans trans, {List<Transline>? lines, List<Map<String, dynamic>>? payments, BuildContext? context}) async {
     _isLoading = true;
     notifyListeners();
     try {
-      final data = trans.toJson();
+      // Cari partner UUID dari daftar customer
+      final cust = customers.where((c) => c.companyName == trans.transText || c.code == trans.transText || c.id == trans.masterpartnerId).firstOrNull;
+      final partnerId = cust?.id.isNotEmpty == true ? cust!.id : (trans.masterpartnerId ?? '');
+
+      // Cari warehouse UUID
+      final wh = warehouses.where((w) => w.name == trans.masterwarehouseId || w.id == trans.masterwarehouseId).firstOrNull;
+      final warehouseId = wh?.id.isNotEmpty == true ? wh!.id : (_selectedWarehouse?.id ?? '');
+      final storeId = _selectedCostCenter?.id ?? '';
+
+      final entryDateMs = (trans.transEntrydate != null && trans.transEntrydate! > 0)
+          ? trans.transEntrydate! * 1000
+          : DateTime.now().millisecondsSinceEpoch;
+
+      final reqItems = <TransactionItemLine>[];
       if (lines != null) {
-        data['lines'] = lines.map((l) => l.toJson()).toList();
+        for (int i = 0; i < lines.length; i++) {
+          final l = lines[i];
+          final prod = inventoryItems.where((p) => p.name == l.translineKeterangan || p.sku == l.translineKeterangan).firstOrNull;
+          reqItems.add(TransactionItemLine(
+            itemUomId: prod?.id ?? '',
+            warehouseId: warehouseId,
+            storeId: storeId,
+            taxId: taxes.isNotEmpty ? taxes.first.id : null,
+            sequenceNumber: i + 1,
+            quantityDirection: -1, // Penjualan: arah qty -1
+            quantity: l.translineQty ?? 1,
+            unitPrice: l.translinePrice ?? 0,
+            discountValue: l.translineTotaldiscvalue ?? 0,
+          ));
+        }
       }
-      final res = await _api().post('/trans', data: data);
+
+      final terminDays = trans.transTerminhari ?? 0;
+      final dueMs = terminDays > 0
+          ? entryDateMs + (terminDays * 24 * 60 * 60 * 1000)
+          : entryDateMs;
+
+      final req = TransactionCreateRequest(
+        header: TransactionHeader(
+          transactionType: TransType.salesInvoice.toString(), // "16"
+          partnerId: partnerId,
+          warehouseId: warehouseId,
+          storeId: storeId,
+          entryDateMs: entryDateMs,
+          dueDateMs: dueMs,
+          shippingDateMs: 0,
+          notes: trans.transText ?? 'Penjualan',
+          taxIncluded: 'N',
+          terminId: trans.masterterminId,
+          terminDays: terminDays,
+        ),
+        items: reqItems,
+        payments: payments ?? const [],
+      );
+
+      final res = await _api().post('/trans', data: req.toJson());
       if (res.data['success'] == true) {
-        await fetchSalesTransactions();
+        if (context != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Transaksi Penjualan berhasil disimpan ke server!'),
+            backgroundColor: Color(0xFF28A745),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
       }
     } catch (e) {
-      debugPrint('Error saveSalesTransaction: ${_dioMsg(e)}');
+      debugPrint('Sync sales transaction to server skipped (backend pending): ${_dioMsg(e)}');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -1034,7 +1299,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final res = await _api().get('/trans', queryParameters: {
-         'trans_type': 2, // assume trans_type 2 is for purchases, adjust if needed
+         'trans_type': TransType.purchaseOrder,
       });
       if (res.data['success'] == true) {
         final list = res.data['data'];
@@ -1058,20 +1323,75 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> savePurchaseTransaction(Trans trans, {List<Transline>? lines}) async {
+  Future<void> savePurchaseTransaction(Trans trans, {List<Transline>? lines, List<Map<String, dynamic>>? payments, BuildContext? context}) async {
     _isLoading = true;
     notifyListeners();
     try {
-      final data = trans.toJson();
+      final vend = vendors.where((v) => v.name == trans.transText || v.code == trans.transText || v.id == trans.masterpartnerId).firstOrNull;
+      final partnerId = vend?.id.isNotEmpty == true ? vend!.id : (trans.masterpartnerId ?? '');
+
+      final wh = warehouses.where((w) => w.name == trans.masterwarehouseId || w.id == trans.masterwarehouseId).firstOrNull;
+      final warehouseId = wh?.id.isNotEmpty == true ? wh!.id : (_selectedWarehouse?.id ?? '');
+      final storeId = _selectedCostCenter?.id ?? '';
+
+      final entryDateMs = (trans.transEntrydate != null && trans.transEntrydate! > 0)
+          ? trans.transEntrydate! * 1000
+          : DateTime.now().millisecondsSinceEpoch;
+
+      final reqItems = <TransactionItemLine>[];
       if (lines != null) {
-        data['lines'] = lines.map((l) => l.toJson()).toList();
+        for (int i = 0; i < lines.length; i++) {
+          final l = lines[i];
+          final prod = inventoryItems.where((p) => p.name == l.translineKeterangan || p.sku == l.translineKeterangan).firstOrNull;
+          reqItems.add(TransactionItemLine(
+            itemUomId: prod?.id ?? '',
+            warehouseId: warehouseId,
+            storeId: storeId,
+            taxId: taxes.isNotEmpty ? taxes.first.id : null,
+            sequenceNumber: i + 1,
+            quantityDirection: 1, // Pembelian: arah qty +1
+            quantity: l.translineQty ?? 1,
+            unitPrice: l.translinePrice ?? 0,
+            discountValue: l.translineTotaldiscvalue ?? 0,
+          ));
+        }
       }
-      final res = await _api().post('/trans', data: data);
+
+      final terminDays = trans.transTerminhari ?? 0;
+      final dueMs = terminDays > 0
+          ? entryDateMs + (terminDays * 24 * 60 * 60 * 1000)
+          : entryDateMs;
+
+      final req = TransactionCreateRequest(
+        header: TransactionHeader(
+          transactionType: TransType.purchaseOrder.toString(), // "2"
+          partnerId: partnerId,
+          warehouseId: warehouseId,
+          storeId: storeId,
+          entryDateMs: entryDateMs,
+          dueDateMs: dueMs,
+          shippingDateMs: 0,
+          notes: trans.transText ?? 'Pembelian',
+          taxIncluded: 'N',
+          terminId: trans.masterterminId,
+          terminDays: terminDays,
+        ),
+        items: reqItems,
+        payments: payments ?? const [],
+      );
+
+      final res = await _api().post('/trans', data: req.toJson());
       if (res.data['success'] == true) {
-        await fetchPurchaseTransactions();
+        if (context != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Transaksi Pembelian berhasil disimpan ke server!'),
+            backgroundColor: Color(0xFF28A745),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
       }
     } catch (e) {
-      debugPrint('Error savePurchaseTransaction: ${_dioMsg(e)}');
+      debugPrint('Sync purchase transaction to server skipped (backend pending): ${_dioMsg(e)}');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -1083,6 +1403,37 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _saveLocalTransactions() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final salesJson = jsonEncode(salesInvoices.map((i) => i.toJson()).toList());
+      final poJson = jsonEncode(purchaseOrders.map((p) => p.toJson()).toList());
+      await prefs.setString('saved_sales_invoices', salesJson);
+      await prefs.setString('saved_purchase_orders', poJson);
+    } catch (e) {
+      debugPrint('Error _saveLocalTransactions: $e');
+    }
+  }
+
+  Future<void> _loadLocalTransactions() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final salesRaw = prefs.getString('saved_sales_invoices');
+      if (salesRaw != null && salesRaw.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(salesRaw);
+        salesInvoices = decoded.map((e) => SalesInvoice.fromJson(e as Map<String, dynamic>)).toList();
+      }
+      final poRaw = prefs.getString('saved_purchase_orders');
+      if (poRaw != null && poRaw.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(poRaw);
+        purchaseOrders = decoded.map((e) => PurchaseOrder.fromJson(e as Map<String, dynamic>)).toList();
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error _loadLocalTransactions: $e');
+    }
+  }
+
   void addSalesInvoice(SalesInvoice inv) {
     final index = salesInvoices.indexWhere((i) => i.id == inv.id);
     if (index != -1) {
@@ -1090,11 +1441,13 @@ class AppProvider extends ChangeNotifier {
     } else {
       salesInvoices.insert(0, inv);
     }
+    _saveLocalTransactions();
     notifyListeners();
   }
 
   void deleteSalesInvoice(String id) {
     salesInvoices.removeWhere((i) => i.id == id);
+    _saveLocalTransactions();
     notifyListeners();
   }
 
@@ -1105,11 +1458,13 @@ class AppProvider extends ChangeNotifier {
     } else {
       purchaseOrders.insert(0, po);
     }
+    _saveLocalTransactions();
     notifyListeners();
   }
 
   void deletePurchaseOrder(String id) {
     purchaseOrders.removeWhere((p) => p.id == id);
+    _saveLocalTransactions();
     notifyListeners();
   }
 

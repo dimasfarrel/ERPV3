@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// SharedPreferences removed; UI settings persisted via server API.
 import '../../data/providers/app_provider.dart';
 
 /// Menyimpan preferensi tampilan (mode gelap & warna aksen) ke penyimpanan lokal.
@@ -12,29 +12,11 @@ class ThemePersistence {
 
   /// Pulihkan preferensi tersimpan ke [provider], lalu pantau perubahannya.
   static Future<void> restoreAndWatch(AppProvider provider) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedDark = prefs.getBool(_darkKey);
-      final savedAccent = prefs.getInt(_accentKey);
-      if (savedDark != null) provider.setThemeMode(savedDark);
-      if (savedAccent != null) provider.setPrimaryColor(Color(savedAccent));
-
-      var lastDark = provider.isDarkMode;
-      var lastAccent = provider.primaryColor.toARGB32();
-      provider.addListener(() {
-        final dark = provider.isDarkMode;
-        final accent = provider.primaryColor.toARGB32();
-        if (dark != lastDark) {
-          lastDark = dark;
-          prefs.setBool(_darkKey, dark);
-        }
-        if (accent != lastAccent) {
-          lastAccent = accent;
-          prefs.setInt(_accentKey, accent);
-        }
-      });
-    } catch (_) {
-      // Gagal baca/tulis preferensi tidak boleh menghalangi aplikasi berjalan.
-    }
+    // Load UI settings from server
+    await provider.loadUiSettings();
+    // Watch for changes and persist to server
+    provider.addListener(() async {
+      await provider.saveUiSettings();
+    });
   }
 }

@@ -45,3 +45,8 @@ app.*.map.json
 /android/app/release
 .vercel
 .env*
+
+# Postman export & SQL dump
+*postman*.json
+api_baru.json
+*.sql

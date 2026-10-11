@@ -6,6 +6,8 @@ import '../../data/models/app_models.dart';
 import '../../data/providers/app_provider.dart';
 import '../../widgets/common/erp_card.dart';
 import '../../widgets/common/status_badge.dart';
+import '../../widgets/transaction/transaction_payment_dialog.dart';
+import '../../widgets/transaction/invoice_print_dialog.dart';
 
 class SalesModule extends StatefulWidget {
   const SalesModule({super.key});
@@ -417,17 +419,49 @@ class _SalesModuleState extends State<SalesModule> {
                     onPressed: () => context.read<AppProvider>().openNewForm('sales', customTitle: 'Edit Faktur ${inv.id}', targetId: inv.id),
                     tooltip: 'Edit',
                   ),
+                  if (inv.status != 'Lunas' && inv.status != 'Draft') ...[
+                    IconButton(
+                      icon: const Icon(Icons.payment_rounded, size: 16, color: Color(0xFF28A745)),
+                      onPressed: () async {
+                        final result = await TransactionPaymentDialog.show(
+                          context,
+                          transactionId: inv.id,
+                          totalAmount: inv.amount,
+                          partnerName: inv.customer,
+                          isPurchase: false,
+                        );
+                        if (result != null && context.mounted) {
+                          final updatedInv = inv.copyWith(
+                            status: 'Lunas',
+                            paymentMethod: result.paymentMethod,
+                            paidAmount: result.paidAmount,
+                            paymentDate: DateTime.now(),
+                          );
+                          final provider = context.read<AppProvider>();
+                          provider.addSalesInvoice(updatedInv);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Pembayaran faktur ${inv.id} berhasil dicatat (Lunas).'),
+                            backgroundColor: const Color(0xFF28A745),
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                        }
+                      },
+                      tooltip: 'Bayar / Pelunasan',
+                    ),
+                  ],
+                  IconButton(
+                    icon: const Icon(Icons.print_outlined, size: 16),
+                    onPressed: () {
+                      InvoicePrintDialog.showFromSales(context, invoice: inv);
+                    },
+                    tooltip: 'Cetak Nota',
+                  ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
                     onPressed: () {
                       context.read<AppProvider>().deleteSalesInvoice(inv.id);
                     },
                     tooltip: 'Hapus',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.print_outlined, size: 16),
-                    onPressed: () {},
-                    tooltip: 'Cetak Nota',
                   ),
                 ])),
               ])).toList(),

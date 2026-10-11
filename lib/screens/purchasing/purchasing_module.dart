@@ -6,6 +6,8 @@ import '../../data/models/app_models.dart';
 import '../../data/providers/app_provider.dart';
 import '../../widgets/common/erp_card.dart';
 import '../../widgets/common/status_badge.dart';
+import '../../widgets/transaction/transaction_payment_dialog.dart';
+import '../../widgets/transaction/invoice_print_dialog.dart';
 
 class PurchasingModule extends StatefulWidget {
   const PurchasingModule({super.key});
@@ -289,17 +291,49 @@ class _PurchasingModuleState extends State<PurchasingModule> {
                     onPressed: () => context.read<AppProvider>().openNewForm('purchasing', customTitle: 'Edit PO ${po.id}', targetId: po.id),
                     tooltip: 'Edit',
                   ),
+                  if (po.status != 'Lunas' && po.status != 'Draft') ...[
+                    IconButton(
+                      icon: const Icon(Icons.payment_rounded, size: 16, color: Color(0xFF28A745)),
+                      onPressed: () async {
+                        final result = await TransactionPaymentDialog.show(
+                          context,
+                          transactionId: po.id,
+                          totalAmount: po.amount,
+                          partnerName: po.vendor,
+                          isPurchase: true,
+                        );
+                        if (result != null && context.mounted) {
+                          final updatedPo = po.copyWith(
+                            status: 'Lunas',
+                            paymentMethod: result.paymentMethod,
+                            paidAmount: result.paidAmount,
+                            paymentDate: DateTime.now(),
+                          );
+                          final provider = context.read<AppProvider>();
+                          provider.addPurchaseOrder(updatedPo);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Pelunasan PO ${po.id} berhasil dicatat (Lunas).'),
+                            backgroundColor: const Color(0xFF28A745),
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                        }
+                      },
+                      tooltip: 'Bayar / Pelunasan PO',
+                    ),
+                  ],
+                  IconButton(
+                    icon: const Icon(Icons.print_outlined, size: 16),
+                    onPressed: () {
+                      InvoicePrintDialog.showFromPurchase(context, po: po);
+                    },
+                    tooltip: 'Cetak PO',
+                  ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
                     onPressed: () {
                       context.read<AppProvider>().deletePurchaseOrder(po.id);
                     },
                     tooltip: 'Hapus',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.print_outlined, size: 16),
-                    onPressed: () {},
-                    tooltip: 'Cetak PO',
                   ),
                 ])),
               ])).toList(),

@@ -129,6 +129,58 @@ class WarehouseEntity {
 // Sales & Receivables (AR Aging)
 // ==========================================
 
+class InvoiceItemLine {
+  final String productName;
+  final String description;
+  final double qty;
+  final String unit;
+  final double unitPrice;
+  final double discount;
+  final String tax;
+  final double total;
+  final String? itemUomId;
+  final String? taxId;
+
+  InvoiceItemLine({
+    required this.productName,
+    this.description = '',
+    required this.qty,
+    this.unit = 'Pcs',
+    required this.unitPrice,
+    this.discount = 0.0,
+    this.tax = 'PPN',
+    required this.total,
+    this.itemUomId,
+    this.taxId,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'productName': productName,
+    'description': description,
+    'qty': qty,
+    'unit': unit,
+    'unitPrice': unitPrice,
+    'discount': discount,
+    'tax': tax,
+    'total': total,
+    'itemUomId': itemUomId,
+    'taxId': taxId,
+  };
+
+  factory InvoiceItemLine.fromJson(Map<String, dynamic> json) => InvoiceItemLine(
+    productName: json['productName'] ?? '',
+    description: json['description'] ?? '',
+    qty: (json['qty'] as num?)?.toDouble() ?? 1.0,
+    unit: json['unit'] ?? 'Pcs',
+    unitPrice: (json['unitPrice'] as num?)?.toDouble() ?? 0.0,
+    discount: (json['discount'] as num?)?.toDouble() ?? 0.0,
+    tax: json['tax'] ?? 'PPN',
+    total: (json['total'] as num?)?.toDouble() ?? 0.0,
+    itemUomId: json['itemUomId'],
+    taxId: json['taxId'],
+  );
+}
+
 class SalesInvoice {
   final String id;
   final DateTime date;
@@ -136,6 +188,15 @@ class SalesInvoice {
   final String warehouse;
   final double amount;
   final String status;
+  final List<InvoiceItemLine> items;
+  final String? notes;
+  final String? staff;
+  final String? termin;
+  final DateTime? dueDate;
+  final DateTime? shippingDate;
+  final String? paymentMethod;
+  final double? paidAmount;
+  final DateTime? paymentDate;
 
   SalesInvoice({
     required this.id,
@@ -144,7 +205,89 @@ class SalesInvoice {
     required this.warehouse,
     required this.amount,
     required this.status,
+    this.items = const [],
+    this.notes,
+    this.staff,
+    this.termin,
+    this.dueDate,
+    this.shippingDate,
+    this.paymentMethod,
+    this.paidAmount,
+    this.paymentDate,
   });
+
+  SalesInvoice copyWith({
+    String? id,
+    DateTime? date,
+    String? customer,
+    String warehouse = '',
+    double? amount,
+    String? status,
+    List<InvoiceItemLine>? items,
+    String? notes,
+    String? staff,
+    String? termin,
+    DateTime? dueDate,
+    DateTime? shippingDate,
+    String? paymentMethod,
+    double? paidAmount,
+    DateTime? paymentDate,
+  }) => SalesInvoice(
+    id: id ?? this.id,
+    date: date ?? this.date,
+    customer: customer ?? this.customer,
+    warehouse: warehouse.isNotEmpty ? warehouse : this.warehouse,
+    amount: amount ?? this.amount,
+    status: status ?? this.status,
+    items: items ?? this.items,
+    notes: notes ?? this.notes,
+    staff: staff ?? this.staff,
+    termin: termin ?? this.termin,
+    dueDate: dueDate ?? this.dueDate,
+    shippingDate: shippingDate ?? this.shippingDate,
+    paymentMethod: paymentMethod ?? this.paymentMethod,
+    paidAmount: paidAmount ?? this.paidAmount,
+    paymentDate: paymentDate ?? this.paymentDate,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'date': date.toIso8601String(),
+    'customer': customer,
+    'warehouse': warehouse,
+    'amount': amount,
+    'status': status,
+    'items': items.map((i) => i.toJson()).toList(),
+    'notes': notes,
+    'staff': staff,
+    'termin': termin,
+    'dueDate': dueDate?.toIso8601String(),
+    'shippingDate': shippingDate?.toIso8601String(),
+    'paymentMethod': paymentMethod,
+    'paidAmount': paidAmount,
+    'paymentDate': paymentDate?.toIso8601String(),
+  };
+
+  factory SalesInvoice.fromJson(Map<String, dynamic> json) => SalesInvoice(
+    id: json['id'] ?? '',
+    date: DateTime.tryParse(json['date'] ?? '') ?? DateTime.now(),
+    customer: json['customer'] ?? '',
+    warehouse: json['warehouse'] ?? '',
+    amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+    status: json['status'] ?? 'Draft',
+    items: (json['items'] as List<dynamic>?)
+            ?.map((i) => InvoiceItemLine.fromJson(i as Map<String, dynamic>))
+            .toList() ??
+        [],
+    notes: json['notes'],
+    staff: json['staff'],
+    termin: json['termin'],
+    dueDate: json['dueDate'] != null ? DateTime.tryParse(json['dueDate']) : null,
+    shippingDate: json['shippingDate'] != null ? DateTime.tryParse(json['shippingDate']) : null,
+    paymentMethod: json['paymentMethod'],
+    paidAmount: (json['paidAmount'] as num?)?.toDouble(),
+    paymentDate: json['paymentDate'] != null ? DateTime.tryParse(json['paymentDate']) : null,
+  );
 
   String get statusBadge {
     switch (status) {
@@ -191,6 +334,15 @@ class PurchaseOrder {
   final String warehouse;
   final double amount;
   final String status;
+  final List<InvoiceItemLine> items;
+  final String? notes;
+  final String? staff;
+  final String? termin;
+  final DateTime? dueDate;
+  final DateTime? shippingDate;
+  final String? paymentMethod;
+  final double? paidAmount;
+  final DateTime? paymentDate;
 
   PurchaseOrder({
     required this.id,
@@ -199,7 +351,89 @@ class PurchaseOrder {
     required this.warehouse,
     required this.amount,
     required this.status,
+    this.items = const [],
+    this.notes,
+    this.staff,
+    this.termin,
+    this.dueDate,
+    this.shippingDate,
+    this.paymentMethod,
+    this.paidAmount,
+    this.paymentDate,
   });
+
+  PurchaseOrder copyWith({
+    String? id,
+    DateTime? date,
+    String? vendor,
+    String warehouse = '',
+    double? amount,
+    String? status,
+    List<InvoiceItemLine>? items,
+    String? notes,
+    String? staff,
+    String? termin,
+    DateTime? dueDate,
+    DateTime? shippingDate,
+    String? paymentMethod,
+    double? paidAmount,
+    DateTime? paymentDate,
+  }) => PurchaseOrder(
+    id: id ?? this.id,
+    date: date ?? this.date,
+    vendor: vendor ?? this.vendor,
+    warehouse: warehouse.isNotEmpty ? warehouse : this.warehouse,
+    amount: amount ?? this.amount,
+    status: status ?? this.status,
+    items: items ?? this.items,
+    notes: notes ?? this.notes,
+    staff: staff ?? this.staff,
+    termin: termin ?? this.termin,
+    dueDate: dueDate ?? this.dueDate,
+    shippingDate: shippingDate ?? this.shippingDate,
+    paymentMethod: paymentMethod ?? this.paymentMethod,
+    paidAmount: paidAmount ?? this.paidAmount,
+    paymentDate: paymentDate ?? this.paymentDate,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'date': date.toIso8601String(),
+    'vendor': vendor,
+    'warehouse': warehouse,
+    'amount': amount,
+    'status': status,
+    'items': items.map((i) => i.toJson()).toList(),
+    'notes': notes,
+    'staff': staff,
+    'termin': termin,
+    'dueDate': dueDate?.toIso8601String(),
+    'shippingDate': shippingDate?.toIso8601String(),
+    'paymentMethod': paymentMethod,
+    'paidAmount': paidAmount,
+    'paymentDate': paymentDate?.toIso8601String(),
+  };
+
+  factory PurchaseOrder.fromJson(Map<String, dynamic> json) => PurchaseOrder(
+    id: json['id'] ?? '',
+    date: DateTime.tryParse(json['date'] ?? '') ?? DateTime.now(),
+    vendor: json['vendor'] ?? '',
+    warehouse: json['warehouse'] ?? '',
+    amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+    status: json['status'] ?? 'Draft',
+    items: (json['items'] as List<dynamic>?)
+            ?.map((i) => InvoiceItemLine.fromJson(i as Map<String, dynamic>))
+            .toList() ??
+        [],
+    notes: json['notes'],
+    staff: json['staff'],
+    termin: json['termin'],
+    dueDate: json['dueDate'] != null ? DateTime.tryParse(json['dueDate']) : null,
+    shippingDate: json['shippingDate'] != null ? DateTime.tryParse(json['shippingDate']) : null,
+    paymentMethod: json['paymentMethod'],
+    paidAmount: (json['paidAmount'] as num?)?.toDouble(),
+    paymentDate: json['paymentDate'] != null ? DateTime.tryParse(json['paymentDate']) : null,
+  );
 
   String get statusBadge {
     switch (status) {
@@ -662,6 +896,7 @@ class ProductSku {
 }
 
 class CustomerModel {
+  final String id;
   final String code;
   String companyName;
   String contact;
@@ -671,6 +906,7 @@ class CustomerModel {
   bool isActive;
 
   CustomerModel({
+    this.id = '',
     required this.code,
     required this.companyName,
     required this.contact,
@@ -682,6 +918,7 @@ class CustomerModel {
 }
 
 class VendorModel {
+  final String id;
   final String code;
   String name;
   String contact;
@@ -691,6 +928,7 @@ class VendorModel {
   bool isActive;
 
   VendorModel({
+    this.id = '',
     required this.code,
     required this.name,
     required this.contact,
@@ -700,3 +938,4 @@ class VendorModel {
     this.isActive = true,
   });
 }
+

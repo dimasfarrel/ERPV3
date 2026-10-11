@@ -5,9 +5,11 @@ import '../../core/utils/formatters.dart';
 import '../../data/providers/app_provider.dart';
 import '../../data/models/app_models.dart';
 import '../../data/models/sql_models.dart';
+import '../../data/models/master_models.dart';
 import '../../widgets/common/erp_card.dart';
-import '../../widgets/common/resizable_panel.dart';
 import '../../widgets/common/resizable_table.dart';
+import '../../widgets/transaction/transaction_payment_dialog.dart';
+import '../../widgets/transaction/invoice_print_dialog.dart';
 
 class SalesFormScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -20,18 +22,30 @@ class SalesFormScreen extends StatefulWidget {
 
 class _SalesFormScreenState extends State<SalesFormScreen> {
   String _activeTab = 'utama';
-  String _selectedCustomer = '';
-  String _selectedWarehouse = '';
   final _indukCtrl = TextEditingController(text: 'Jl. Raya Industri No. 5, Kepanjen');
   final _staffCtrl = TextEditingController();
-  final _tempoCtrl = TextEditingController(text: '30 HARI');
-  final _tempoValCtrl = TextEditingController(text: '30');
+  final _tempoCtrl = TextEditingController(text: 'Termin 0 hari');
+  final _tempoValCtrl = TextEditingController(text: '0');
+  String? _selectedTerminId;
   final _dateCtrl = TextEditingController(text: '2026-09-22');
+  final _customerCtrl = TextEditingController();
+  final _warehouseCtrl = TextEditingController();
+
+  String get _selectedCustomer => _customerCtrl.text;
+  set _selectedCustomer(String v) => _customerCtrl.text = v;
+
+  String get _selectedWarehouse => _warehouseCtrl.text;
+  set _selectedWarehouse(String v) => _warehouseCtrl.text = v;
+
   final _shipDateCtrl = TextEditingController(text: '2026-09-24');
   final _dueDateCtrl = TextEditingController(text: '2026-10-22');
   final _keteranganCtrl = TextEditingController();
   final _nomorNotaCtrl = TextEditingController(text: 'INV-2026-006');
   final _notesCtrl = TextEditingController();
+  final Map<String, FocusNode> _f3FocusNodes = {};
+
+  FocusNode _getF3Focus(String key) => _f3FocusNodes.putIfAbsent(key, () => FocusNode());
+
   bool _termasukPpn = true;
   bool _tambahBaris = true;
   bool _langsungCetak = true;
@@ -66,8 +80,11 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [_indukCtrl, _staffCtrl, _tempoCtrl, _tempoValCtrl, _dateCtrl, _shipDateCtrl, _dueDateCtrl, _keteranganCtrl, _nomorNotaCtrl, _notesCtrl, _rateCtrl, ..._lainCtrls.values]) {
+    for (final c in [_customerCtrl, _warehouseCtrl, _indukCtrl, _staffCtrl, _tempoCtrl, _tempoValCtrl, _dateCtrl, _shipDateCtrl, _dueDateCtrl, _keteranganCtrl, _nomorNotaCtrl, _notesCtrl, _rateCtrl, ..._lainCtrls.values]) {
       c.dispose();
+    }
+    for (final fn in _f3FocusNodes.values) {
+      fn.dispose();
     }
     super.dispose();
   }
@@ -86,6 +103,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     _dueDateCtrl.text = _fmtDate(now.add(const Duration(days: 30)));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<AppProvider>();
+      provider.fetchDues();
       if (widget.targetId != null) {
         final existing = provider.salesInvoices.where((i) => i.id == widget.targetId).firstOrNull;
         if (existing != null) {
@@ -93,24 +111,66 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
             _existing = existing;
             _dateCtrl.text = _fmtDate(existing.date);
             _nomorNotaCtrl.text = existing.id;
-            _selectedCustomer = existing.customer;
-            _selectedWarehouse = existing.warehouse;
+            _customerCtrl.text = existing.customer;
+            _warehouseCtrl.text = existing.warehouse;
+            if (existing.staff != null && existing.staff!.isNotEmpty) {
+              _staffCtrl.text = existing.staff!;
+            }
+            if (existing.termin != null && existing.termin!.isNotEmpty) {
+              _tempoCtrl.text = existing.termin!;
+              final days = int.tryParse(existing.termin!.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+              _tempoValCtrl.text = days.toString();
+            }
+            if (existing.notes != null && existing.notes!.isNotEmpty) {
+              _notesCtrl.text = existing.notes!;
+              _keteranganCtrl.text = existing.notes!;
+            }
+            if (existing.dueDate != null) {
+              _dueDateCtrl.text = _fmtDate(existing.dueDate!);
+            }
+            if (existing.shippingDate != null) {
+              _shipDateCtrl.text = _fmtDate(existing.shippingDate!);
+            }
             _termasukPpn = false; 
-            _items = [
-              _LineItem()
-                ..produkCtrl.text = 'Produk Penjualan'
-                ..hargaCtrl.text = existing.amount.toStringAsFixed(0)
-                ..pajak = '-'
-            ];
-            _items[0].updateJumlah();
+
+            if (existing.items.isNotEmpty) {
+              _items = existing.items.map((line) {
+                final it = _LineItem();
+                it.produkCtrl.text = line.productName;
+                it.deskCtrl.text = line.description;
+                it.qtyCtrl.text = line.qty == line.qty.toInt() ? line.qty.toInt().toString() : line.qty.toString();
+                it.unitCtrl.text = line.unit;
+                it.hargaCtrl.text = line.unitPrice.toStringAsFixed(0);
+                it.discCtrl.text = line.discount.toString();
+                it.pajak = line.tax;
+                it.jumlah = line.total;
+                it.itemUomId = line.itemUomId;
+                return it;
+              }).toList();
+            } else {
+              _items = [
+                _LineItem()
+                  ..produkCtrl.text = 'Produk Penjualan'
+                  ..hargaCtrl.text = existing.amount.toStringAsFixed(0)
+                  ..jumlah = existing.amount
+                  ..pajak = '-'
+              ];
+            }
           });
+        } else {
+          if (provider.customers.isNotEmpty) {
+            setState(() => _customerCtrl.text = provider.customers.first.companyName);
+          }
+          if (provider.warehouses.isNotEmpty) {
+            setState(() => _warehouseCtrl.text = provider.warehouses.first.name);
+          }
         }
       } else {
         if (provider.customers.isNotEmpty) {
-          setState(() => _selectedCustomer = provider.customers.first.companyName);
+          setState(() => _customerCtrl.text = provider.customers.first.companyName);
         }
         if (provider.warehouses.isNotEmpty) {
-          setState(() => _selectedWarehouse = provider.warehouses.first.name);
+          setState(() => _warehouseCtrl.text = provider.warehouses.first.name);
         }
       }
     });
@@ -244,8 +304,8 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
   }
 
   Widget _buildUtamaTab(bool isDark) {
+    final provider = context.watch<AppProvider>();
     final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
-    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
     final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
     final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
 
@@ -268,17 +328,186 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  _buildF3Search('Nama Pelanggan', initial: _selectedCustomer, options: _customers, onChanged: (v) => _selectedCustomer = v, isDark: isDark),
+                  _buildF3Search('Nama Pelanggan', controller: _customerCtrl, options: _customers, onChanged: (v) => _selectedCustomer = v, isDark: isDark),
                   const SizedBox(height: 16),
-                  _buildF3Search('Perusahaan Induk', initial: _indukCtrl.text, options: _customers, onChanged: (v) => _indukCtrl.text = v, isDark: isDark),
+                  _buildF3Search('Perusahaan Induk', controller: _indukCtrl, options: _customers, onChanged: (v) => _indukCtrl.text = v, isDark: isDark),
                   const SizedBox(height: 16),
-                  _buildF3Search('Sales Staff', initial: _staffCtrl.text, options: _staffs, onChanged: (v) => _staffCtrl.text = v, isDark: isDark),
+                  _buildF3Search('Sales Staff', controller: _staffCtrl, options: _staffs, onChanged: (v) => _staffCtrl.text = v, isDark: isDark),
                   const SizedBox(height: 16),
-                  _overlayField('Termin Pembayaran', child: Row(children: [
-                    Expanded(child: TextField(controller: _tempoCtrl, decoration: _inputDeco('30 HARI...', isDark), style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary))),
-                    const SizedBox(width: 8),
-                    SizedBox(width: 70, child: TextField(controller: _tempoValCtrl, textAlign: TextAlign.center, decoration: _inputDeco('30', isDark), style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary))),
-                  ]), isDark: isDark),
+                  _overlayField('Termin Pembayaran', child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Expanded(
+                          child: RawAutocomplete<String>(
+                            textEditingController: _tempoCtrl,
+                            focusNode: _getF3Focus('Termin'),
+                            optionsBuilder: (TextEditingValue textEditingValue) {
+                              final opts = (provider.dues.isNotEmpty
+                                      ? provider.dues.map((d) => d.displayName).toList()
+                                      : ['Termin 0 hari', 'Termin 30 hari'])
+                                  .toList();
+                              if (textEditingValue.text.isEmpty) return opts;
+                              return opts.where((opt) =>
+                                  opt.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                            },
+                            onSelected: (selection) {
+                              final matched = provider.dues.where((d) => d.displayName == selection).firstOrNull;
+                              final days = matched?.days ??
+                                  (int.tryParse(selection.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0);
+                              setState(() {
+                                _tempoCtrl.text = matched?.displayName ?? 'Termin $days hari';
+                                _tempoValCtrl.text = days.toString();
+                                _selectedTerminId = matched?.id;
+                                final entryDate = DateTime.tryParse(_dateCtrl.text) ?? DateTime.now();
+                                _dueDateCtrl.text = _fmtDate(entryDate.add(Duration(days: days)));
+                              });
+                            },
+                            fieldViewBuilder: (context, textController, focusNode, onEditingComplete) {
+                              return TextField(
+                                controller: textController,
+                                focusNode: focusNode,
+                                onEditingComplete: onEditingComplete,
+                                decoration: _inputDeco('Pilih / ketik termin...', isDark).copyWith(
+                                  suffixIcon: Icon(Icons.arrow_drop_down, color: _primaryColor),
+                                ),
+                                style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary),
+                                onChanged: (v) {
+                                  final days = int.tryParse(v.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                  final matched = provider.dues.where((d) => d.days == days || d.name == v).firstOrNull;
+                                  setState(() {
+                                    _tempoValCtrl.text = days.toString();
+                                    _selectedTerminId = matched?.id;
+                                    final entryDate = DateTime.tryParse(_dateCtrl.text) ?? DateTime.now();
+                                    _dueDateCtrl.text = _fmtDate(entryDate.add(Duration(days: days)));
+                                  });
+                                },
+                              );
+                            },
+                            optionsViewBuilder: (context, onSelected, options) {
+                              final Color cardBg = isDark ? const Color(0xFF1C2630) : Colors.white;
+                              final Color borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+                              return Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 4,
+                                  color: cardBg,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      side: BorderSide(color: borderColor)),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxHeight: 200, maxWidth: 300),
+                                    child: ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      itemCount: options.length,
+                                      itemBuilder: (context, index) {
+                                        final opt = options.elementAt(index);
+                                        return ListTile(
+                                          dense: true,
+                                          title: Text(opt,
+                                              style: GoogleFonts.ibmPlexSans(
+                                                  fontSize: 13, color: _textPrimary)),
+                                          onTap: () => onSelected(opt),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 80,
+                          child: TextField(
+                            controller: _tempoValCtrl,
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            decoration: _inputDeco('Hari', isDark),
+                            style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary),
+                            onChanged: (v) {
+                              final days = int.tryParse(v) ?? 0;
+                              final matched = provider.dues.where((d) => d.days == days).firstOrNull;
+                              setState(() {
+                                _tempoCtrl.text = matched?.displayName ?? 'Termin $days hari';
+                                _selectedTerminId = matched?.id;
+                                final entryDate = DateTime.tryParse(_dateCtrl.text) ?? DateTime.now();
+                                _dueDateCtrl.text = _fmtDate(entryDate.add(Duration(days: days)));
+                              });
+                            },
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: 6),
+                      // Chips dinamis sesuai data api/v2/termin/trans
+                      Builder(builder: (context) {
+                        final duesList = provider.dues.isNotEmpty
+                            ? provider.dues
+                            : [
+                                DueModel(id: '0', code: '0', name: 'Termin 0 hari', days: 0),
+                                DueModel(id: '30', code: '30', name: 'Termin 30 hari', days: 30),
+                              ];
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: duesList.map((d) {
+                              final isSelected = _tempoValCtrl.text.trim() == d.days.toString();
+                              final color = d.days == 0 ? const Color(0xFF28A745) : _primaryColor;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _tempoValCtrl.text = d.days.toString();
+                                      _tempoCtrl.text = d.displayName;
+                                      _selectedTerminId = d.id;
+                                      final entryDate = DateTime.tryParse(_dateCtrl.text) ?? DateTime.now();
+                                      _dueDateCtrl.text = _fmtDate(entryDate.add(Duration(days: d.days)));
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? color.withValues(alpha: 0.15)
+                                          : (isDark ? const Color(0xFF222C36) : const Color(0xFFE2E8F0)),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: isSelected ? color : Colors.transparent,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          d.days == 0 ? Icons.flash_on : Icons.calendar_today_outlined,
+                                          size: 12,
+                                          color: isSelected ? color : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          d.displayName,
+                                          style: GoogleFonts.ibmPlexSans(
+                                            fontSize: 11,
+                                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                            color: isSelected ? color : (isDark ? Colors.grey[300] : Colors.grey[800]),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        );
+                      }),
+                    ],
+                  ), isDark: isDark),
                 ],
               ),
             );
@@ -299,7 +528,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                     children: [
                       Expanded(child: _overlayField('Nomor Nota', child: TextField(controller: _nomorNotaCtrl, decoration: _inputDeco('INV-XXXX-XXX', isDark), style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary)), isDark: isDark)),
                       const SizedBox(width: 12),
-                      Expanded(child: _buildF3Search('Gudang Sumber', initial: _selectedWarehouse, options: _warehouses, onChanged: (v) => _selectedWarehouse = v, isDark: isDark)),
+                      Expanded(child: _buildF3Search('Gudang Sumber', controller: _warehouseCtrl, options: _warehouses, onChanged: (v) => _selectedWarehouse = v, isDark: isDark)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -352,7 +581,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                         cellBuilder: (context, r, c) {
                           final item = _items[r];
                           switch (c) {
-                            case 0: return _tdInput(item.produkCtrl, 'Pilih produk...', isDark, onChanged: (_) => setState(() {}));
+                            case 0: return _tdProductSelect(item, r, isDark);
                             case 1: return _tdInput(item.deskCtrl, 'Deskripsi...', isDark);
                             case 2: return _tdInput(item.qtyCtrl, '0', isDark, isNumber: true, onChanged: (_) => setState(() { item.updateJumlah(); }));
                             case 3: return _tdInput(item.unitCtrl, 'Pcs', isDark);
@@ -700,7 +929,24 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: const Color(0xFFE55353), behavior: SnackBarBehavior.floating));
   }
 
-  void _commit({required String status, required String message}) async {
+  Future<void> _commit({
+    required String status,
+    required String message,
+    PaymentResult? paymentResult,
+    bool showPrintNota = false,
+  }) async {
+    final invItems = _items.where((i) => i.produkCtrl.text.trim().isNotEmpty).map((item) => InvoiceItemLine(
+      productName: item.produkCtrl.text.trim(),
+      description: item.deskCtrl.text.trim(),
+      qty: double.tryParse(item.qtyCtrl.text) ?? 1,
+      unit: item.unitCtrl.text.trim(),
+      unitPrice: double.tryParse(item.hargaCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
+      discount: double.tryParse(item.discCtrl.text) ?? 0,
+      tax: item.pajak,
+      total: item.jumlah,
+      itemUomId: item.itemUomId,
+    )).toList();
+
     final inv = SalesInvoice(
       id: _nomorNotaCtrl.text.trim(),
       date: DateTime.tryParse(_dateCtrl.text) ?? _existing?.date ?? DateTime.now(),
@@ -708,9 +954,25 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
       warehouse: _selectedWarehouse,
       amount: _grandTotal,
       status: status,
+      items: invItems,
+      notes: _notesCtrl.text.isNotEmpty ? _notesCtrl.text : _keteranganCtrl.text,
+      staff: _staffCtrl.text,
+      termin: _tempoCtrl.text,
+      dueDate: DateTime.tryParse(_dueDateCtrl.text),
+      shippingDate: DateTime.tryParse(_shipDateCtrl.text),
+      paymentMethod: paymentResult?.paymentMethod ?? _existing?.paymentMethod,
+      paidAmount: paymentResult?.paidAmount ?? _existing?.paidAmount,
+      paymentDate: paymentResult != null ? DateTime.now() : _existing?.paymentDate,
     );
 
     // Create Trans object mapping from the form
+    final terminDays = int.tryParse(_tempoValCtrl.text.trim()) ??
+        (int.tryParse(_tempoCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0);
+    final provider = context.read<AppProvider>();
+    final matchedDue = provider.dues
+        .where((d) => d.id == _selectedTerminId || d.days == terminDays || d.name == _tempoCtrl.text)
+        .firstOrNull;
+
     final trans = Trans(
       transNomornota: inv.id,
       transEntrydate: (inv.date.millisecondsSinceEpoch / 1000).round(),
@@ -718,6 +980,8 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
       masterwarehouseId: inv.warehouse,
       transNilaikurs: inv.amount,
       transType: status == 'Lunas' ? 1 : 0, 
+      transTerminhari: terminDays,
+      masterterminId: matchedDue?.id ?? _selectedTerminId,
     );
 
     // Create Transline objects from items
@@ -729,6 +993,11 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
       translineNetvalue: item.jumlah,
     )).toList();
 
+    List<Map<String, dynamic>>? paymentPayload;
+    if (paymentResult != null) {
+      paymentPayload = [paymentResult.toBackendMap()];
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
       backgroundColor: const Color(0xFF28A745),
@@ -736,11 +1005,17 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     ));
     
     // Save to local and backend
-    context.read<AppProvider>().addSalesInvoice(inv);
-    context.read<AppProvider>().saveSalesTransaction(trans, lines: lines);
+    provider.addSalesInvoice(inv);
+    provider.saveSalesTransaction(trans, lines: lines, payments: paymentPayload, context: context);
     
-    context.read<AppProvider>().switchModule('sales');
-    widget.onBack();
+    if (showPrintNota && mounted) {
+      InvoicePrintDialog.showFromSales(context, invoice: inv);
+    }
+
+    if (mounted) {
+      provider.switchModule('sales');
+      widget.onBack();
+    }
   }
 
   void _simpanDraft() {
@@ -753,15 +1028,252 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     _commit(status: 'Draft', message: 'Draft ${_nomorNotaCtrl.text.trim()} tersimpan.');
   }
 
-  void _simpanDanTerbitkan() {
+  void _simpanDanTerbitkan() async {
     final hasItem = _items.any((i) => i.produkCtrl.text.trim().isNotEmpty && i.jumlah > 0);
     if (_selectedCustomer.trim().isEmpty) return _showError('Partner wajib diisi.');
     if (_nomorNotaCtrl.text.trim().isEmpty) return _showError('Nomor nota wajib diisi.');
     if (!hasItem) return _showError('Isi minimal satu baris produk dengan qty dan harga lebih dari 0.');
+
+    // Hitung apakah termin = 0 hari (Cash) atau > 0 hari (Kredit)
+    final valParsed = int.tryParse(_tempoValCtrl.text.trim());
+    final tempoTextParsed = int.tryParse(_tempoCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
+    final terminDays = valParsed ?? tempoTextParsed ?? 0;
+    final isCash = terminDays == 0;
+
+    PaymentResult? paymentResult;
+    String finalStatus = 'Belum Bayar';
+
+    if (isCash) {
+      // CASH: Langsung buka modal pembayaran
+      final result = await TransactionPaymentDialog.show(
+        context,
+        transactionId: _nomorNotaCtrl.text.trim(),
+        totalAmount: _grandTotal,
+        partnerName: _selectedCustomer,
+        isPurchase: false,
+      );
+
+      // Jika user membatalkan / menutup modal pembayaran, batalkan proses simpan
+      if (result == null) {
+        return;
+      }
+      paymentResult = result;
+      finalStatus = 'Lunas';
+    } else {
+      // KREDIT: Langsung simpan dengan status Belum Bayar
+      finalStatus = 'Belum Bayar';
+    }
+
     final keep = _existing != null && _existing!.status != 'Draft';
-    _commit(
-      status: keep ? _existing!.status : 'Belum Bayar',
+    if (keep && paymentResult == null) {
+      finalStatus = _existing!.status;
+    }
+
+    await _commit(
+      status: finalStatus,
+      paymentResult: paymentResult,
       message: 'Faktur ${_nomorNotaCtrl.text.trim()} berhasil ${keep ? 'diperbarui' : 'diterbitkan'}.',
+      showPrintNota: true,
+    );
+  }
+
+  void _showProductSelectorDialog(int r) {
+    final provider = context.read<AppProvider>();
+    final items = provider.inventoryItems;
+    final isDark = provider.isDarkMode;
+    final Color _primaryColor = provider.primaryColor;
+    final Color _cardBg = isDark ? const Color(0xFF1C2630) : Colors.white;
+    final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        String query = '';
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final filtered = items.where((it) {
+              final q = query.toLowerCase();
+              return it.name.toLowerCase().contains(q) ||
+                  it.sku.toLowerCase().contains(q) ||
+                  it.category.toLowerCase().contains(q);
+            }).toList();
+
+            return Dialog(
+              backgroundColor: _cardBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              child: Container(
+                width: 620,
+                height: 520,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Pilih Produk dari Stok Gudang',
+                            style: GoogleFonts.ibmPlexSans(
+                                fontSize: 16, fontWeight: FontWeight.w600, color: _textPrimary)),
+                        IconButton(
+                            icon: Icon(Icons.close, size: 20, color: _textSecondary),
+                            onPressed: () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      autofocus: true,
+                      style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary),
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.search, size: 20, color: _textSecondary),
+                        hintText: 'Ketik nama barang, kode SKU, atau kategori...',
+                        hintStyle: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textSecondary),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: _borderColor)),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: _borderColor)),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      onChanged: (val) {
+                        setDialogState(() => query = val);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Text(
+                                items.isEmpty
+                                    ? 'Belum ada data barang di gudang aktif.\nPastikan gudang sudah dipilih di menu atas.'
+                                    : 'Tidak ada produk yang cocok dengan "$query".',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.ibmPlexSans(color: _textSecondary, fontSize: 13),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, __) => Divider(height: 1, color: _borderColor),
+                              itemBuilder: (context, idx) {
+                                final prod = filtered[idx];
+                                return ListTile(
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  title: Row(
+                                    children: [
+                                      Container(
+                                        padding:
+                                            const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: _primaryColor.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(prod.sku,
+                                            style: GoogleFonts.ibmPlexSans(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: _primaryColor)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(prod.name,
+                                            style: GoogleFonts.ibmPlexSans(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: _textPrimary),
+                                            overflow: TextOverflow.ellipsis),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Row(
+                                      children: [
+                                        Text('Kategori: ${prod.category}',
+                                            style: GoogleFonts.ibmPlexSans(
+                                                fontSize: 11, color: _textSecondary)),
+                                        const SizedBox(width: 12),
+                                        Text('Tersedia: ${prod.stockAvailable} ${prod.unit}',
+                                            style: GoogleFonts.ibmPlexSans(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color: prod.stockAvailable > 0
+                                                    ? const Color(0xFF28A745)
+                                                    : const Color(0xFFE55353))),
+                                      ],
+                                    ),
+                                  ),
+                                  trailing: Text(
+                                    Formatters.currency(
+                                        prod.unitPrice > 0 ? prod.unitPrice : prod.costPrice),
+                                    style: GoogleFonts.ibmPlexSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: _textPrimary),
+                                  ),
+                                  onTap: () {
+                                    setState(() {
+                                      final item = _items[r];
+                                      item.produkCtrl.text = prod.name;
+                                      item.deskCtrl.text = prod.category;
+                                      item.unitCtrl.text = prod.unit;
+                                      final price = prod.unitPrice > 0 ? prod.unitPrice : prod.costPrice;
+                                      item.hargaCtrl.text = price.toStringAsFixed(0);
+                                      item.itemUomId = prod.id;
+                                      item.updateJumlah();
+                                    });
+                                    Navigator.pop(ctx);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _tdProductSelect(_LineItem item, int r, bool isDark) {
+    final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
+
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: InkWell(
+        onTap: () => _showProductSelectorDialog(r),
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: _borderColor),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item.produkCtrl.text.isEmpty ? 'Pilih produk...' : item.produkCtrl.text,
+                  style: GoogleFonts.ibmPlexSans(
+                    fontSize: 12,
+                    color: item.produkCtrl.text.isEmpty ? _textSecondary : _textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(Icons.arrow_drop_down, size: 18, color: _textSecondary),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -827,24 +1339,58 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     );
   }
 
-  Widget _buildF3Search(String label, {String? initial, List<String>? options, ValueChanged<String>? onChanged, required bool isDark}) {
+  Widget _buildF3Search(String label, {required TextEditingController controller, List<String>? options, ValueChanged<String>? onChanged, required bool isDark}) {
     final opts = options ?? ['Data A', 'Data B', 'Data C', 'Hasil Pencarian...'];
     final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
     final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
 
-    return _overlayField(label, isDark: isDark, child: Autocomplete<String>(
-      initialValue: TextEditingValue(text: initial ?? ''),
-      onSelected: (v) => onChanged?.call(v),
+    return _overlayField(label, isDark: isDark, child: RawAutocomplete<String>(
+      textEditingController: controller,
+      focusNode: _getF3Focus(label),
+      onSelected: (v) {
+        controller.text = v;
+        onChanged?.call(v);
+      },
       optionsBuilder: (TextEditingValue textEditingValue) {
         if (textEditingValue.text.isEmpty) return opts;
         return opts.where((String option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
       },
-      fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+      fieldViewBuilder: (context, textController, focusNode, onEditingComplete) {
         return TextField(
-          controller: controller, focusNode: focusNode, onEditingComplete: onEditingComplete,
+          controller: textController,
+          focusNode: focusNode,
+          onEditingComplete: onEditingComplete,
           onChanged: (v) => onChanged?.call(v),
           decoration: _inputDeco('Ketik & cari...', isDark).copyWith(suffixIcon: Icon(Icons.search, size: 16, color: _primaryColor)),
           style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        final Color _cardBg = isDark ? const Color(0xFF1C2630) : Colors.white;
+        final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            color: _cardBg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: _borderColor)),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 300),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return ListTile(
+                    dense: true,
+                    title: Text(option, style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary)),
+                    onTap: () => onSelected(option),
+                  );
+                },
+              ),
+            ),
+          ),
         );
       },
     ));
@@ -943,6 +1489,7 @@ class _LineItem {
   final discCtrl = TextEditingController(text: '0');
   String pajak = 'PPN';
   double jumlah = 0;
+  String? itemUomId;
 
   void updateJumlah() {
     final qty = double.tryParse(qtyCtrl.text) ?? 0;
