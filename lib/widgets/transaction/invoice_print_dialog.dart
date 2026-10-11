@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/app_models.dart';
+import '../../data/providers/app_provider.dart';
 
 class InvoicePrintDialog extends StatelessWidget {
   final String title;
@@ -93,6 +95,18 @@ class InvoicePrintDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
+    final biz = provider.selectedBusiness;
+    final rawName = biz?.name.trim() ?? '';
+    final String companyName = rawName.isNotEmpty
+        ? (RegExp(r'^(PT|CV|UD|PD|KOP)\b', caseSensitive: false).hasMatch(rawName)
+            ? rawName.toUpperCase()
+            : 'PT ${rawName.toUpperCase()}')
+        : 'PT ERP MULTI SISTEM';
+    final String companyDesc = (biz != null && biz.description.trim().isNotEmpty && biz.description != 'Entitas bisnis terdaftar')
+        ? biz.description
+        : 'Industrial & Commercial Enterprise Solutions';
+
     final isLunas = status.toLowerCase() == 'lunas';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final Color cardBg = isDark ? const Color(0xFF1C2630) : Colors.white;
@@ -202,11 +216,11 @@ class InvoicePrintDialog extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'PT ERP MULTI SISTEM',
+                                        companyName,
                                         style: GoogleFonts.ibmPlexSans(fontSize: 16, fontWeight: FontWeight.w800, color: textPrimary),
                                       ),
                                       Text(
-                                        'Industrial ERP & Trading Solutions',
+                                        companyDesc,
                                         style: GoogleFonts.ibmPlexSans(fontSize: 11, color: textSecondary),
                                       ),
                                     ],
@@ -422,6 +436,17 @@ class InvoicePrintDialog extends StatelessWidget {
                             ],
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 24),
+                      Center(
+                        child: Text(
+                          'Dokumen ini dicetak otomatis melalui iSoft Enterprise ERP System',
+                          style: GoogleFonts.ibmPlexSans(
+                            fontSize: 10,
+                            color: textSecondary.withValues(alpha: 0.7),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
                       ),
                     ],
                   ),
