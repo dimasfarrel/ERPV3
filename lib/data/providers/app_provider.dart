@@ -33,6 +33,7 @@ class AppProvider extends ChangeNotifier {
   String _port = '8084';
   String _accessToken = '';
   String _refreshToken = '';
+  String? _loginError;
 
   // Selections
   BusinessEntity? _selectedBusiness;
@@ -68,6 +69,12 @@ class AppProvider extends ChangeNotifier {
   bool get isUsingLiveDatabase => _isUsingLiveDatabase;
   String get ip => _ip;
   String get port => _port;
+  String? get loginError => _loginError;
+
+  void clearLoginError() {
+    _loginError = null;
+    notifyListeners();
+  }
 
   // Real Database Metadata
   Map<String, dynamic> generalSettings = {};
@@ -489,6 +496,7 @@ class AppProvider extends ChangeNotifier {
     required String port,
     required BuildContext context,
   }) async {
+    _loginError = null;
     _isLoading = true;
     notifyListeners();
 
@@ -612,26 +620,42 @@ class AppProvider extends ChangeNotifier {
         }
 
       } else {
+        _loginError = 'Login gagal: Periksa kembali username & password.';
         if (context.mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Login gagal: ${response.data}'),
-            backgroundColor: Colors.red,
+            content: Text(_loginError!),
+            backgroundColor: const Color(0xFFC53030),
+            behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 4),
+            showCloseIcon: true,
+            closeIconColor: Colors.white,
+            action: SnackBarAction(
+              label: 'Tutup',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ));
         }
       }
     } catch (e) {
+      _loginError = 'Gagal koneksi ke server http://$ip:$port. Pastikan database aktif atau gunakan Mode Demo.';
       if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Gagal koneksi ke database http://$ip:$port ($e)'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
+          content: Text(_loginError!),
+          backgroundColor: const Color(0xFFC53030),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          showCloseIcon: true,
+          closeIconColor: Colors.white,
           action: SnackBarAction(
-            label: 'Coba Mock Demo',
-            textColor: Colors.yellow,
+            label: 'Tutup',
+            textColor: Colors.white,
             onPressed: () {
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              loginAsDemo();
             },
           ),
         ));
@@ -643,6 +667,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   void loginAsDemo() {
+    _loginError = null;
     _isLoggedIn = true;
     _isUsingLiveDatabase = false;
     _username = 'FARREL (Demo)';

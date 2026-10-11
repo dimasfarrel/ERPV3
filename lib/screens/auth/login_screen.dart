@@ -87,6 +87,58 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 32),
 
+                    // Dismissible Error Banner
+                    if (provider.loginError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDEDEC),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFF5C6CB)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.error_outline, color: Color(0xFFB3363B), size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Koneksi / Login Gagal',
+                                    style: GoogleFonts.ibmPlexSans(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF721C24),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    provider.loginError!,
+                                    style: GoogleFonts.ibmPlexSans(
+                                      fontSize: 12,
+                                      color: const Color(0xFF721C24),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16, color: Color(0xFF721C24)),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              splashRadius: 14,
+                              tooltip: 'Tutup pesan error',
+                              onPressed: () => provider.clearLoginError(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
                     // Username Field
                     _buildLabel('Username'),
                     const SizedBox(height: 8),
@@ -303,6 +355,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _onLogin() {
     if (_formKey.currentState?.validate() ?? true) {
+      context.read<AppProvider>().clearLoginError();
       context.read<AppProvider>().login(
         username: _usernameCtrl.text,
         password: _passwordCtrl.text,
