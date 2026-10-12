@@ -404,23 +404,45 @@ class InvoicePrintDialog extends StatelessWidget {
                           const SizedBox(width: 24),
                           SizedBox(
                             width: 260,
-                            child: Column(
-                              children: [
-                                _summaryRow('Subtotal', Formatters.currency(totalAmount), textSecondary),
-                                const SizedBox(height: 6),
-                                Divider(height: 1, color: borderColor),
-                                const SizedBox(height: 6),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Builder(
+                              builder: (context) {
+                                double itemsSum = items.fold(0.0, (s, i) => s + i.total);
+                                if (itemsSum == 0) itemsSum = totalAmount;
+
+                                double calculatedTax = 0;
+                                for (final it in items) {
+                                  if (it.tax == 'PPN' || it.tax.contains('11')) {
+                                    calculatedTax += it.total - (it.total / 1.11);
+                                  }
+                                }
+                                if (calculatedTax == 0 && items.any((i) => i.tax == 'PPN')) {
+                                  calculatedTax = itemsSum - (itemsSum / 1.11);
+                                }
+                                final dpp = itemsSum - calculatedTax;
+
+                                return Column(
                                   children: [
-                                    Text('TOTAL AKHIR', style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w800, color: textPrimary)),
-                                    Text(
-                                      Formatters.currency(totalAmount),
-                                      style: GoogleFonts.ibmPlexSans(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF1259A7)),
+                                    _summaryRow('SUB TOTAL (DPP)', Formatters.currency(dpp), textSecondary),
+                                    const SizedBox(height: 6),
+                                    if (calculatedTax > 0) ...[
+                                      _summaryRow('PPN (11%)', Formatters.currency(calculatedTax), textSecondary),
+                                      const SizedBox(height: 6),
+                                    ],
+                                    Divider(height: 1, color: borderColor),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('GRAND TOTAL', style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w800, color: textPrimary)),
+                                        Text(
+                                          Formatters.currency(totalAmount),
+                                          style: GoogleFonts.ibmPlexSans(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF1259A7)),
+                                        ),
+                                      ],
                                     ),
                                   ],
-                                ),
-                              ],
+                                );
+                              },
                             ),
                           ),
                         ],

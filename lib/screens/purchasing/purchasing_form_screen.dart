@@ -104,9 +104,37 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
 
   List<_LineItem> _items = [_LineItem()];
 
-  double get _subtotal => _items.fold(0, (s, i) => s + i.jumlah);
-  double get _ppn => _termasukPpn ? _subtotal * 0.11 : 0;
-  double get _grandTotal => _subtotal + _ppn;
+  double get _itemsTotal => _items.fold(0, (s, i) => s + i.jumlah);
+
+  double get _ppn {
+    double tax = 0;
+    for (final it in _items) {
+      if (it.pajak == 'PPN' || it.pajak.contains('11')) {
+        if (_termasukPpn) {
+          tax += it.jumlah - (it.jumlah / 1.11);
+        } else {
+          tax += it.jumlah * 0.11;
+        }
+      }
+    }
+    return tax;
+  }
+
+  double get _subtotal {
+    if (_termasukPpn) {
+      return _itemsTotal - _ppn;
+    } else {
+      return _itemsTotal;
+    }
+  }
+
+  double get _grandTotal {
+    if (_termasukPpn) {
+      return _itemsTotal;
+    } else {
+      return _itemsTotal + _ppn;
+    }
+  }
 
   List<String> get _vendors {
     final list = context.read<AppProvider>().vendors.map((v) => v.name).toList();
@@ -704,7 +732,7 @@ class _PurchasingFormScreenState extends State<PurchasingFormScreen> {
               final calc = SizedBox(
                 width: isMobile ? double.infinity : 320,
                 child: Column(children: [
-                  _calcRow('Subtotal:', Formatters.currency(_subtotal), false, isDark),
+                  _calcRow(_termasukPpn ? 'Subtotal (DPP):' : 'Subtotal:', Formatters.currency(_subtotal), false, isDark),
                   const SizedBox(height: 12),
                   _calcRow('PPN (11%):', Formatters.currency(_ppn), false, isDark),
                   Padding(
