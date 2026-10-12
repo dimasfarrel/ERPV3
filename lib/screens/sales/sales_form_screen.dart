@@ -40,9 +40,55 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
   final _shipDateCtrl = TextEditingController(text: '2026-09-24');
   final _dueDateCtrl = TextEditingController(text: '2026-10-22');
   final _keteranganCtrl = TextEditingController();
-  final _nomorNotaCtrl = TextEditingController(text: 'INV-2026-006');
+  final _nomorNotaCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   final Map<String, FocusNode> _f3FocusNodes = {};
+
+  /// Nomor urut terakhir dari database (null = belum/gagal dibaca).
+  int? _dbLastSeq;
+  /// Nomor yang terakhir di-generate otomatis; dipakai untuk cek user sudah edit manual atau belum.
+  String _autoNota = '';
+
+  String _generateNextNota() {
+    final now = DateTime.now();
+    final year = (now.year % 100).toString().padLeft(2, '0');
+    final provider = context.read<AppProvider>();
+    // Mulai dari nomor terakhir di DB, lalu cek juga nota lokal (mis. disimpan offline)
+    int maxSeq = _dbLastSeq ?? 0;
+    final regex = RegExp('^SI-$year-(\\d+)\$', caseSensitive: false);
+    for (final inv in provider.salesInvoices) {
+      final m = regex.firstMatch(inv.id);
+      if (m != null) {
+        final seq = int.tryParse(m.group(1)!) ?? 0;
+        if (seq > maxSeq) maxSeq = seq;
+      }
+    }
+    final nextSeq = (maxSeq + 1).toString().padLeft(8, '0');
+    return 'SI-$year-$nextSeq';
+  }
+
+  /// Baca nomor nota terakhir dari DB lalu perbarui field nomor nota,
+  /// selama user belum mengubahnya secara manual.
+  Future<void> _syncNotaFromDb() async {
+    final provider = context.read<AppProvider>();
+    final seq = await provider.fetchLastNotaSequence(transType: TransType.salesInvoice, prefix: 'SI');
+    if (!mounted || seq == null) return;
+    _dbLastSeq = seq;
+    final current = _nomorNotaCtrl.text.trim();
+    if (current.isEmpty || current == _autoNota) {
+      final next = _generateNextNota();
+      setState(() {
+        _autoNota = next;
+        _nomorNotaCtrl.text = next;
+      });
+    }
+  }
+
+  void _initAutoNota() {
+    _autoNota = _generateNextNota();
+    _nomorNotaCtrl.text = _autoNota;
+    _syncNotaFromDb();
+  }
 
   FocusNode _getF3Focus(String key) => _f3FocusNodes.putIfAbsent(key, () => FocusNode());
 
@@ -104,6 +150,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<AppProvider>();
       provider.fetchDues();
+      provider.fetchItemsForWarehouse();
       if (widget.targetId != null) {
         final existing = provider.salesInvoices.where((i) => i.id == widget.targetId).firstOrNull;
         if (existing != null) {
@@ -158,17 +205,17 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
             }
           });
         } else {
-          if (provider.customers.isNotEmpty) {
-            setState(() => _customerCtrl.text = provider.customers.first.companyName);
-          }
+          _initAutoNota();
+          provider.fetchPartners(TransType.salesOrder);
+          provider.fetchEmployees();
           if (provider.warehouses.isNotEmpty) {
             setState(() => _warehouseCtrl.text = provider.warehouses.first.name);
           }
         }
       } else {
-        if (provider.customers.isNotEmpty) {
-          setState(() => _customerCtrl.text = provider.customers.first.companyName);
-        }
+        _initAutoNota();
+        provider.fetchPartners(TransType.salesOrder);
+        provider.fetchEmployees();
         if (provider.warehouses.isNotEmpty) {
           setState(() => _warehouseCtrl.text = provider.warehouses.first.name);
         }
@@ -526,7 +573,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      Expanded(child: _overlayField('Nomor Nota', child: TextField(controller: _nomorNotaCtrl, decoration: _inputDeco('INV-XXXX-XXX', isDark), style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary)), isDark: isDark)),
+                      Expanded(child: _overlayField('Nomor Nota', child: TextField(controller: _nomorNotaCtrl, decoration: _inputDeco('SI-26-00000001', isDark), style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary)), isDark: isDark)),
                       const SizedBox(width: 12),
                       Expanded(child: _buildF3Search('Gudang Sumber', controller: _warehouseCtrl, options: _warehouses, onChanged: (v) => _selectedWarehouse = v, isDark: isDark)),
                     ],
@@ -935,6 +982,12 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     PaymentResult? paymentResult,
     bool showPrintNota = false,
   }) async {
+    // Nota baru: cek ulang nomor terakhir di DB tepat sebelum simpan,
+    // supaya tidak dobel kalau ada user lain yang baru saja menyimpan.
+    if (_existing == null) {
+      await _syncNotaFromDb();
+      if (!mounted) return;
+    }
     final invItems = _items.where((i) => i.produkCtrl.text.trim().isNotEmpty).map((item) => InvoiceItemLine(
       productName: item.produkCtrl.text.trim(),
       description: item.deskCtrl.text.trim(),
@@ -973,9 +1026,14 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
         .where((d) => d.id == _selectedTerminId || d.days == terminDays || d.name == _tempoCtrl.text)
         .firstOrNull;
 
+    final shipDateParsed = DateTime.tryParse(_shipDateCtrl.text);
+    final dueDateParsed = DateTime.tryParse(_dueDateCtrl.text);
+
     final trans = Trans(
       transNomornota: inv.id,
       transEntrydate: (inv.date.millisecondsSinceEpoch / 1000).round(),
+      transTgljatem: dueDateParsed != null ? (dueDateParsed.millisecondsSinceEpoch / 1000).round() : null,
+      transTglkirim: shipDateParsed != null ? (shipDateParsed.millisecondsSinceEpoch / 1000).round() : null,
       transText: inv.customer,
       masterwarehouseId: inv.warehouse,
       transNilaikurs: inv.amount,
@@ -985,17 +1043,102 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     );
 
     // Create Transline objects from items
-    final lines = _items.map((item) => Transline(
-      translineKeterangan: item.produkCtrl.text,
-      translineQty: double.tryParse(item.qtyCtrl.text) ?? 0.0,
-      translinePrice: double.tryParse(item.hargaCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
-      translineTotaldiscvalue: double.tryParse(item.discCtrl.text) ?? 0.0,
-      translineNetvalue: item.jumlah,
-    )).toList();
+    final lines = _items.map((item) {
+      String? chosenTaxId;
+      if (item.pajak == '-') {
+        chosenTaxId = 'aeb5ce17-e1d8-11ef-976d-6c3be5bcbf18'; // NON PPN
+      } else if (item.pajak == 'PPN' || item.pajak.contains('11')) {
+        chosenTaxId = 'aeb5ec94-e1d8-11ef-976d-6c3be5bcbf18'; // PPN 11
+      }
+      return Transline(
+        masteritemuomId: item.itemUomId,
+        mastertaxId: chosenTaxId,
+        translineKeterangan: item.produkCtrl.text,
+        translineKeterangan02: item.unitCtrl.text,
+        translineQty: double.tryParse(item.qtyCtrl.text) ?? 0.0,
+        translinePrice: double.tryParse(item.hargaCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+        translineTotaldiscvalue: double.tryParse(item.discCtrl.text) ?? 0.0,
+        translineNetvalue: item.jumlah,
+      );
+    }).toList();
 
     List<Map<String, dynamic>>? paymentPayload;
     if (paymentResult != null) {
       paymentPayload = [paymentResult.toBackendMap()];
+    }
+
+    // Tampilkan loading modal saat menyimpan ke backend
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Menyimpan transaksi ke server...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final result = await provider.saveSalesTransaction(trans, lines: lines, payments: paymentPayload);
+
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop(); // Tutup loading modal
+    }
+
+    if (!result.success) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Gagal Menyimpan ke Server', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+            content: Text(
+              'Server backend merespon error:\n\n"${result.message}"\n\n'
+              'Penyebab: Endpoint API v2 (/api/v2/trans) mengalami kendala internal di server database.\n'
+              'Apakah Anda ingin tetap menyimpan transaksi ini sebagai draft offline lokal?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal & Cek Ulang'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6EFD)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  provider.addSalesInvoice(inv);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Disimpan sebagai offline draft lokal.'),
+                    backgroundColor: Colors.orange,
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                  if (showPrintNota && mounted) {
+                    InvoicePrintDialog.showFromSales(context, invoice: inv);
+                  }
+                  provider.switchModule('sales');
+                  widget.onBack();
+                },
+                child: const Text('Simpan Offline Saja', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1004,12 +1147,14 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
       behavior: SnackBarBehavior.floating,
     ));
     
-    // Save to local and backend
-    provider.addSalesInvoice(inv);
-    provider.saveSalesTransaction(trans, lines: lines, payments: paymentPayload, context: context);
+    // Save to local state
+    final finalInv = (result.transNumber != null && result.transNumber!.isNotEmpty)
+        ? inv.copyWith(id: result.transNumber!)
+        : inv;
+    provider.addSalesInvoice(finalInv);
     
     if (showPrintNota && mounted) {
-      InvoicePrintDialog.showFromSales(context, invoice: inv);
+      InvoicePrintDialog.showFromSales(context, invoice: finalInv);
     }
 
     if (mounted) {
@@ -1214,17 +1359,27 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                                         fontWeight: FontWeight.w600,
                                         color: _textPrimary),
                                   ),
-                                  onTap: () {
-                                    setState(() {
-                                      final item = _items[r];
-                                      item.produkCtrl.text = prod.name;
-                                      item.deskCtrl.text = prod.category;
-                                      item.unitCtrl.text = prod.unit;
-                                      final price = prod.unitPrice > 0 ? prod.unitPrice : prod.costPrice;
-                                      item.hargaCtrl.text = price.toStringAsFixed(0);
-                                      item.itemUomId = prod.id;
-                                      item.updateJumlah();
-                                    });
+                                  onTap: () async {
+                                    final item = _items[r];
+                                    item.produkCtrl.text = prod.name;
+                                    item.deskCtrl.text = prod.category;
+                                    item.unitCtrl.text = prod.unit;
+                                    final price = prod.unitPrice > 0 ? prod.unitPrice : prod.costPrice;
+                                    item.hargaCtrl.text = price.toStringAsFixed(0);
+
+                                    // Ambil item_uom_id asli dari server (bukan prod.id yang merupakan item_id)
+                                    String? targetUomId = (prod.itemUomId != null && prod.itemUomId!.isNotEmpty && prod.itemUomId != prod.id)
+                                        ? prod.itemUomId
+                                        : null;
+                                    if (targetUomId == null && prod.id.isNotEmpty) {
+                                      final uoms = await provider.fetchItemUoms(prod.id);
+                                      if (uoms.isNotEmpty) {
+                                        targetUomId = uoms.first.id;
+                                      }
+                                    }
+                                    item.itemUomId = targetUomId ?? prod.itemUomId;
+                                    item.updateJumlah();
+                                    if (mounted) setState(() {});
                                     Navigator.pop(ctx);
                                   },
                                 );

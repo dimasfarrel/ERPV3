@@ -9,6 +9,7 @@ class PaymentResult {
   final String paymentMethodId;
   final String paymentMethodCode;
   final String paymentMethodName;
+  final String? accountId;
   final double amountPaid;
   final double change;
   final DateTime paymentDate;
@@ -19,6 +20,7 @@ class PaymentResult {
     required this.paymentMethodId,
     required this.paymentMethodCode,
     required this.paymentMethodName,
+    this.accountId,
     required this.amountPaid,
     required this.change,
     required this.paymentDate,
@@ -30,15 +32,22 @@ class PaymentResult {
   double get paidAmount => amountPaid;
   Map<String, dynamic> toBackendMap() => toBackendPayload();
 
-  Map<String, dynamic> toBackendPayload() => {
-    'payment_method_id': paymentMethodId,
-    'payment_method_code': paymentMethodCode,
-    'payment_method_name': paymentMethodName,
-    'amount': amountPaid,
-    'payment_date_ms': paymentDate.millisecondsSinceEpoch,
-    'reference': reference,
-    'note': note,
-  };
+  Map<String, dynamic> toBackendPayload() {
+    String accId = accountId ?? paymentMethodId;
+    final uuidReg = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+    if (!uuidReg.hasMatch(accId)) {
+      accId = 'ae813d56-e1d8-11ef-976d-6c3be5bcbf18'; // Real Kas UUID
+    }
+    return {
+      'account_id': accId,
+      'sequence_number': 1,
+      'qty': 1,
+      'amount': amountPaid,
+      'tendered_amount': amountPaid + change,
+      'is_payment': 'Y',
+      'is_down_payment': 'N',
+    };
+  }
 }
 
 class TransactionPaymentDialog extends StatefulWidget {
@@ -90,19 +99,20 @@ class _TransactionPaymentDialogState extends State<TransactionPaymentDialog> {
   PaymentMethodModel? _selectedMethod;
 
   final List<PaymentMethodModel> _defaultMethods = [
-    PaymentMethodModel(id: 'pm-1', code: 'CASH', name: 'Tunai / Cash'),
-    PaymentMethodModel(id: 'pm-2', code: 'BCA', name: 'Transfer Bank BCA'),
-    PaymentMethodModel(id: 'pm-3', code: 'MANDIRI', name: 'Transfer Bank Mandiri'),
-    PaymentMethodModel(id: 'pm-4', code: 'QRIS', name: 'QRIS / Digital Pay'),
-    PaymentMethodModel(id: 'pm-5', code: 'GIRO', name: 'Giro / Cek Bilyet'),
+    PaymentMethodModel(id: 'ae813d56-e1d8-11ef-976d-6c3be5bcbf18', code: 'KAS', name: 'Kas'),
+    PaymentMethodModel(id: 'ae82ac7e-e1d8-11ef-976d-6c3be5bcbf18', code: 'BANK', name: 'Bank'),
+    PaymentMethodModel(id: '0e5bc8d1-598d-11f0-ae3e-6c3be5bcbf18', code: 'CC', name: 'BANK KARTU KREDIT', value: 1.25),
   ];
 
   @override
   void initState() {
     super.initState();
     _amountCtrl = TextEditingController(text: widget.totalAmount.toStringAsFixed(0));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<AppProvider>();
+      if (provider.paymentMethods.isEmpty) {
+        await provider.fetchPaymentMethods();
+      }
       final methods = provider.paymentMethods.isNotEmpty ? provider.paymentMethods : _defaultMethods;
       if (mounted) {
         setState(() {
@@ -486,6 +496,7 @@ class _TransactionPaymentDialogState extends State<TransactionPaymentDialog> {
                         paymentMethodId: method.id,
                         paymentMethodCode: method.code,
                         paymentMethodName: method.name,
+                        accountId: method.accountId ?? method.id,
                         amountPaid: _enteredAmount,
                         change: _change,
                         paymentDate: _paymentDate,

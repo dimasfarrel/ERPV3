@@ -475,6 +475,8 @@ class AccountsPayable {
 
 class InventoryItem {
   final String id; // item_id dari API (kosong untuk data mock)
+  final String? itemUomId; // item_uom_id untuk API transaksi
+  final String? taxId; // tax_id dari API transaksi
   final String sku;
   final String name;
   final String category;
@@ -487,6 +489,8 @@ class InventoryItem {
 
   InventoryItem({
     this.id = '',
+    this.itemUomId,
+    this.taxId,
     required this.sku,
     required this.name,
     required this.category,

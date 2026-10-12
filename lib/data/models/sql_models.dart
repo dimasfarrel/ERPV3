@@ -514,6 +514,8 @@ class Transline {
     this.translineIsothertax,
   });
 
+  String? get itemUomId => masteritemuomId;
+
   factory Transline.fromJson(Map<String, dynamic> json) {
     return Transline(
       translineId: json["transline_id"]?.toString(),

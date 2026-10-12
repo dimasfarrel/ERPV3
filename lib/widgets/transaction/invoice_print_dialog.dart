@@ -234,13 +234,23 @@ class InvoicePrintDialog extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                title,
-                                style: GoogleFonts.ibmPlexSans(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF1259A7), letterSpacing: 0.5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: borderColor),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text('NOMOR TRANSAKSI', style: GoogleFonts.ibmPlexSans(fontSize: 10, fontWeight: FontWeight.w600, color: textSecondary, letterSpacing: 0.5)),
+                                    const SizedBox(height: 2),
+                                    Text(invoiceNumber, style: GoogleFonts.ibmPlexSans(fontSize: 15, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E3A8A))),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Text('No. $invoiceNumber', style: GoogleFonts.ibmPlexMono(fontSize: 14, fontWeight: FontWeight.w700, color: textPrimary)),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(

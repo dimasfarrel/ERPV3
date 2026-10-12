@@ -123,15 +123,14 @@ class AppProvider extends ChangeNotifier {
   ];
   List<DeskModel> desks = [];
   List<TaxModel> taxes = [
-    TaxModel(id: 'tax-ppn-11', code: 'PPN11', name: 'PPN 11%', rate: 11),
-    TaxModel(id: 'tax-non', code: 'NON', name: 'Bebas Pajak (0%)', rate: 0),
+    TaxModel(id: 'aeb5ce17-e1d8-11ef-976d-6c3be5bcbf18', code: 'NON PPN', name: 'NON PPN', rate: 0),
+    TaxModel(id: 'aeb5ec94-e1d8-11ef-976d-6c3be5bcbf18', code: 'PPN 11', name: 'PPN 11', rate: 11),
+    TaxModel(id: 'e84627c7-a521-11f0-ad51-6c3be5bcbf18', code: 'PPN 12', name: 'PPN 12', rate: 12),
   ];
   List<PaymentMethodModel> paymentMethods = [
-    PaymentMethodModel(id: 'pm-1', code: 'CASH', name: 'Tunai / Cash'),
-    PaymentMethodModel(id: 'pm-2', code: 'BCA', name: 'Transfer Bank BCA'),
-    PaymentMethodModel(id: 'pm-3', code: 'MANDIRI', name: 'Transfer Bank Mandiri'),
-    PaymentMethodModel(id: 'pm-4', code: 'QRIS', name: 'QRIS'),
-    PaymentMethodModel(id: 'pm-5', code: 'GIRO', name: 'Giro / Cek'),
+    PaymentMethodModel(id: 'ae813d56-e1d8-11ef-976d-6c3be5bcbf18', code: 'KAS', name: 'Kas'),
+    PaymentMethodModel(id: 'ae82ac7e-e1d8-11ef-976d-6c3be5bcbf18', code: 'BANK', name: 'Bank'),
+    PaymentMethodModel(id: '0e5bc8d1-598d-11f0-ae3e-6c3be5bcbf18', code: 'CC', name: 'BANK KARTU KREDIT', value: 1.25),
   ];
   Map<String, List<ItemUomModel>> itemUomsCache = {};
 
@@ -757,6 +756,79 @@ class AppProvider extends ChangeNotifier {
     return e.toString();
   }
 
+  /// Port riwayat yang berhasil dideteksi otomatis saat runtime
+  String? _detectedHistoryPort;
+
+  /// Ambil nomor urut nota terakhir dari database untuk prefix tertentu.
+  /// Fungsi ini secara dinamis MENDETEKSI port yang aktif pada IP target (`_ip`),
+  /// mencoba port login user (`_port`) terlebih dahulu, lalu port pendamping (8084 / 8087).
+  Future<int?> fetchLastNotaSequence({required int transType, required String prefix}) async {
+    final businessId = _selectedBusiness?.id;
+    if (businessId == null || businessId.isEmpty) return null;
+
+    final now = DateTime.now();
+    final yy = (now.year % 100).toString().padLeft(2, '0');
+    final startMs = DateTime(now.year).millisecondsSinceEpoch;
+    final endMs = DateTime(now.year + 1).millisecondsSinceEpoch - 1;
+
+    // Daftar kandidat port untuk dideteksi otomatis:
+    final candidatePorts = <String>{
+      if (_detectedHistoryPort != null) _detectedHistoryPort!,
+      if (_port.isNotEmpty) _port,
+      '8084',
+      '8087',
+    }.toList();
+
+    for (final port in candidatePorts) {
+      try {
+        final res = await Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 4),
+          receiveTimeout: const Duration(seconds: 8),
+          headers: {'Content-Type': 'application/json'},
+          // 404 dari gettransbydate = server aktif tapi data trans masih kosong
+          validateStatus: (s) => s != null && (s == 200 || s == 404),
+        )).post('http://$_ip:$port/api/v1/gettransbydate', data: {
+          'masterbussiness_id': businessId,
+          'trans_type': transType,
+          'tgl_awal': startMs,
+          'tgl_akhir': endMs,
+          'masteruser_id': null,
+        });
+
+        if (res.statusCode == 404) {
+          _detectedHistoryPort = port;
+          return 0;
+        }
+
+        if (res.statusCode == 200) {
+          _detectedHistoryPort = port;
+          final data = res.data is Map ? res.data['data'] : null;
+          if (data is! List) return 0;
+
+          final regex = RegExp('^$prefix-$yy-(\\d+)\$', caseSensitive: false);
+          int maxSeq = 0;
+          for (final row in data) {
+            if (row is! Map) continue;
+            for (final key in const ['trans_text', 'trans_nomornota']) {
+              final m = regex.firstMatch((row[key] ?? '').toString().trim());
+              if (m != null) {
+                final seq = int.tryParse(m.group(1)!) ?? 0;
+                if (seq > maxSeq) maxSeq = seq;
+              }
+            }
+          }
+          return maxSeq;
+        }
+      } catch (e) {
+        // Coba port kandidat berikutnya
+        continue;
+      }
+    }
+
+    debugPrint('fetchLastNotaSequence($prefix) gagal pada semua kandidat port di IP $_ip');
+    return null;
+  }
+
   /// Step 1: pilih business -> POST /auth/switch-business -> GET /business-context
   Future<void> selectBusiness(BusinessEntity biz, {BuildContext? context}) async {
     if (_isLoading) return;
@@ -948,6 +1020,8 @@ class AppProvider extends ChangeNotifier {
         if (list is List) {
           inventoryItems = list.map<InventoryItem>((i) => InventoryItem(
             id: i['item_id']?.toString() ?? '',
+            itemUomId: i['base_item_uom_id']?.toString() ?? i['item_uom_id']?.toString() ?? i['masteritemuom_id']?.toString() ?? i['itemuom_id']?.toString(),
+            taxId: i['tax_id']?.toString(),
             sku: i['item_code']?.toString() ?? '-',
             name: i['item_name']?.toString() ?? '-',
             category: i['category_name']?.toString() ?? 'Umum',
@@ -1242,35 +1316,193 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> saveSalesTransaction(Trans trans, {List<Transline>? lines, List<Map<String, dynamic>>? payments, BuildContext? context}) async {
+  String _formatIsoWithOffset(DateTime dt) {
+    final offset = dt.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final hours = offset.inHours.abs().toString().padLeft(2, '0');
+    final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    final sec = dt.second.toString().padLeft(2, '0');
+    return '$y-$m-${d}T$h:$min:$sec$sign$hours:$minutes';
+  }
+
+  Future<String> _resolveLineUomId(Transline l) async {
+    final text = l.translineKeterangan?.trim() ?? '';
+
+    // 1. Cari produk yang cocok di inventoryItems
+    InventoryItem? prod = inventoryItems.where((p) {
+      if (l.masteritemuomId != null && l.masteritemuomId!.isNotEmpty) {
+        if (p.id == l.masteritemuomId || p.itemUomId == l.masteritemuomId) return true;
+      }
+      if (text.isNotEmpty) {
+        final pName = p.name.trim().toLowerCase();
+        final pSku = p.sku.trim().toLowerCase();
+        final tLower = text.toLowerCase();
+        if (pName == tLower || pSku == tLower) return true;
+        if (pName.contains(tLower) || tLower.contains(pName)) return true;
+      }
+      return false;
+    }).firstOrNull;
+
+    String uomId = '';
+    final desiredUnit = l.translineKeterangan02?.trim().toUpperCase() ?? '';
+
+    // A. Jika prod ditemukan, ambil daftar UOM-nya untuk dicocokkan dengan satuan pilihan user (PCS, LSN, GROSS, dll)
+    if (prod != null && prod.id.isNotEmpty) {
+      List<ItemUomModel> uoms = itemUomsCache[prod.id] ?? [];
+      if (uoms.isEmpty) {
+        uoms = await fetchItemUoms(prod.id);
+      }
+      if (uoms.isNotEmpty) {
+        if (desiredUnit.isNotEmpty) {
+          final matchedUom = uoms.where((u) =>
+            (u.uomCode != null && u.uomCode!.toUpperCase() == desiredUnit) ||
+            u.uomName.toUpperCase() == desiredUnit
+          ).firstOrNull;
+          if (matchedUom != null) {
+            uomId = matchedUom.id;
+          }
+        }
+        if (uomId.isEmpty && prod.itemUomId != null && prod.itemUomId!.isNotEmpty && prod.itemUomId != prod.id) {
+          uomId = prod.itemUomId!;
+        }
+        if (uomId.isEmpty) {
+          uomId = uoms.first.id;
+        }
+      }
+    }
+
+    // B. Jika prod ditemukan tanpa uom list, coba langsung prod.itemUomId
+    if (uomId.isEmpty && prod?.itemUomId != null && prod!.itemUomId!.isNotEmpty && prod.itemUomId != prod.id) {
+      uomId = prod.itemUomId!;
+    }
+
+    // D. Jika prod tidak ditemukan atau uomId masih kosong, periksa l.masteritemuomId
+    if (uomId.isEmpty && l.masteritemuomId != null && l.masteritemuomId!.isNotEmpty) {
+      final candidateId = l.masteritemuomId!;
+      // Cek apakah candidateId sebenarnya adalah item_id
+      final itemWithId = inventoryItems.where((p) => p.id == candidateId).firstOrNull;
+      if (itemWithId != null) {
+        if (itemWithId.itemUomId != null && itemWithId.itemUomId!.isNotEmpty && itemWithId.itemUomId != candidateId) {
+          uomId = itemWithId.itemUomId!;
+        } else {
+          final uoms = await fetchItemUoms(itemWithId.id);
+          if (uoms.isNotEmpty) uomId = uoms.first.id;
+        }
+      } else {
+        // Coba fetchItemUoms siapa tahu candidateId adalah item_id
+        final uoms = await fetchItemUoms(candidateId);
+        if (uoms.isNotEmpty) {
+          uomId = uoms.first.id;
+        } else {
+          // Asumsikan memang item_uom_id
+          uomId = candidateId;
+        }
+      }
+    }
+
+    // E. Fallback darurat: jika uomId masih kosong, ambil item_uom_id dari barang pertama yang ada di gudang
+    if (uomId.isEmpty && inventoryItems.isNotEmpty) {
+      final firstItem = inventoryItems.first;
+      if (firstItem.itemUomId != null && firstItem.itemUomId!.isNotEmpty && firstItem.itemUomId != firstItem.id) {
+        uomId = firstItem.itemUomId!;
+      } else {
+        final uoms = await fetchItemUoms(firstItem.id);
+        if (uoms.isNotEmpty) uomId = uoms.first.id;
+      }
+    }
+
+    debugPrint('[ResolveUom] Line "${l.translineKeterangan}" -> resolved item_uom_id: $uomId');
+    return uomId;
+  }
+
+  String _resolveLineTaxId(Transline l) {
+    if (l.mastertaxId != null && l.mastertaxId!.isNotEmpty) {
+      return l.mastertaxId!;
+    }
+    final text = l.translineKeterangan?.trim() ?? '';
+    final prod = inventoryItems.where((p) {
+      if (l.masteritemuomId != null && l.masteritemuomId!.isNotEmpty) {
+        if (p.id == l.masteritemuomId || p.itemUomId == l.masteritemuomId) return true;
+      }
+      if (text.isNotEmpty) {
+        final pName = p.name.trim().toLowerCase();
+        final pSku = p.sku.trim().toLowerCase();
+        final tLower = text.toLowerCase();
+        if (pName == tLower || pSku == tLower) return true;
+        if (pName.contains(tLower) || tLower.contains(pName)) return true;
+      }
+      return false;
+    }).firstOrNull;
+
+    if (prod?.taxId != null && prod!.taxId!.isNotEmpty) {
+      return prod.taxId!;
+    }
+    if (taxes.isNotEmpty) {
+      return taxes.first.id;
+    }
+    return 'aeb5ce17-e1d8-11ef-976d-6c3be5bcbf18';
+  }
+
+  Future<({bool success, String message, String? transNumber, String? transId})> saveSalesTransaction(
+    Trans trans, {
+    List<Transline>? lines,
+    List<Map<String, dynamic>>? payments,
+    BuildContext? context,
+  }) async {
     _isLoading = true;
     notifyListeners();
     try {
+      if (inventoryItems.isEmpty) {
+        await fetchItemsForWarehouse();
+      }
+      if (taxes.isEmpty) {
+        await fetchTaxes();
+      }
+      if (customers.isEmpty) {
+        await fetchPartners(TransType.salesOrder);
+      }
+      if (costCenters.isEmpty) {
+        await fetchBusinessContext();
+      }
+
       // Cari partner UUID dari daftar customer
       final cust = customers.where((c) => c.companyName == trans.transText || c.code == trans.transText || c.id == trans.masterpartnerId).firstOrNull;
-      final partnerId = cust?.id.isNotEmpty == true ? cust!.id : (trans.masterpartnerId ?? '');
+      final partnerId = cust?.id.isNotEmpty == true
+          ? cust!.id
+          : ((trans.masterpartnerId?.isNotEmpty == true) ? trans.masterpartnerId! : (customers.isNotEmpty ? customers.first.id : ''));
 
       // Cari warehouse UUID
       final wh = warehouses.where((w) => w.name == trans.masterwarehouseId || w.id == trans.masterwarehouseId).firstOrNull;
-      final warehouseId = wh?.id.isNotEmpty == true ? wh!.id : (_selectedWarehouse?.id ?? '');
-      final storeId = _selectedCostCenter?.id ?? '';
+      final warehouseId = wh?.id.isNotEmpty == true
+          ? wh!.id
+          : (_selectedWarehouse?.id ?? (warehouses.isNotEmpty ? warehouses.first.id : ''));
+      final storeId = _selectedCostCenter?.id ?? (costCenters.isNotEmpty ? costCenters.first.id : '');
 
-      final entryDateMs = (trans.transEntrydate != null && trans.transEntrydate! > 0)
-          ? trans.transEntrydate! * 1000
-          : DateTime.now().millisecondsSinceEpoch;
+      DateTime entryDt = DateTime.now();
+      if (trans.transEntrydate != null && trans.transEntrydate! > 0) {
+        final ms = trans.transEntrydate! > 100000000000
+            ? trans.transEntrydate!
+            : trans.transEntrydate! * 1000;
+        entryDt = DateTime.fromMillisecondsSinceEpoch(ms);
+      }
+      final entryDateIso = _formatIsoWithOffset(entryDt);
 
       final reqItems = <TransactionItemLine>[];
       if (lines != null) {
         for (int i = 0; i < lines.length; i++) {
           final l = lines[i];
-          final prod = inventoryItems.where((p) => p.name == l.translineKeterangan || p.sku == l.translineKeterangan).firstOrNull;
+          final uomId = await _resolveLineUomId(l);
+          final lineTaxId = _resolveLineTaxId(l);
+
           reqItems.add(TransactionItemLine(
-            itemUomId: prod?.id ?? '',
-            warehouseId: warehouseId,
-            storeId: storeId,
-            taxId: taxes.isNotEmpty ? taxes.first.id : null,
+            itemUomId: uomId,
+            taxId: lineTaxId,
             sequenceNumber: i + 1,
-            quantityDirection: -1, // Penjualan: arah qty -1
             quantity: l.translineQty ?? 1,
             unitPrice: l.translinePrice ?? 0,
             discountValue: l.translineTotaldiscvalue ?? 0,
@@ -1278,10 +1510,22 @@ class AppProvider extends ChangeNotifier {
         }
       }
 
-      final terminDays = trans.transTerminhari ?? 0;
-      final dueMs = terminDays > 0
-          ? entryDateMs + (terminDays * 24 * 60 * 60 * 1000)
-          : entryDateMs;
+      final sanitizedPayments = <Map<String, dynamic>>[];
+      if (payments != null && payments.isNotEmpty) {
+        if (paymentMethods.isEmpty) {
+          await fetchPaymentMethods();
+        }
+        final uuidReg = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+        for (final p in payments) {
+          final m = Map<String, dynamic>.from(p);
+          String accId = m['account_id']?.toString() ?? '';
+          if (!uuidReg.hasMatch(accId)) {
+            accId = paymentMethods.isNotEmpty ? paymentMethods.first.id : 'ae813d56-e1d8-11ef-976d-6c3be5bcbf18';
+            m['account_id'] = accId;
+          }
+          sanitizedPayments.add(m);
+        }
+      }
 
       final req = TransactionCreateRequest(
         header: TransactionHeader(
@@ -1289,30 +1533,38 @@ class AppProvider extends ChangeNotifier {
           partnerId: partnerId,
           warehouseId: warehouseId,
           storeId: storeId,
-          entryDateMs: entryDateMs,
-          dueDateMs: dueMs,
-          shippingDateMs: 0,
+          exchangeRate: 1,
+          entryDate: entryDateIso,
           notes: trans.transText ?? 'Penjualan',
-          taxIncluded: 'N',
+          taxIncluded: 'Y',
           terminId: trans.masterterminId,
-          terminDays: terminDays,
         ),
         items: reqItems,
-        payments: payments ?? const [],
+        payments: sanitizedPayments,
       );
 
+      debugPrint('[SaveSales] Payload POST /trans: ${jsonEncode(req.toJson())}');
       final res = await _api().post('/trans', data: req.toJson());
       if (res.data['success'] == true) {
+        final d = res.data['data'] as Map<String, dynamic>?;
+        final transNumber = d?['trans_number']?.toString();
+        final transId = d?['trans_id']?.toString();
         if (context != null && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Transaksi Penjualan berhasil disimpan ke server!'),
-            backgroundColor: Color(0xFF28A745),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Transaksi Penjualan berhasil disimpan ke server! (${transNumber ?? ''})'),
+            backgroundColor: const Color(0xFF28A745),
             behavior: SnackBarBehavior.floating,
           ));
         }
+        return (success: true, message: 'Transaksi berhasil disimpan ke server!', transNumber: transNumber, transId: transId);
+      } else {
+        final errMsg = res.data['error']?['message'] ?? res.data['message'] ?? 'Gagal menyimpan transaksi ke server';
+        return (success: false, message: errMsg.toString(), transNumber: null, transId: null);
       }
     } catch (e) {
-      debugPrint('Sync sales transaction to server skipped (backend pending): ${_dioMsg(e)}');
+      final msg = _dioMsg(e);
+      debugPrint('Sync sales transaction to server error: $msg');
+      return (success: false, message: msg, transNumber: null, transId: null);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -1348,33 +1600,59 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> savePurchaseTransaction(Trans trans, {List<Transline>? lines, List<Map<String, dynamic>>? payments, BuildContext? context}) async {
+  Future<({bool success, String message, String? transNumber, String? transId})> savePurchaseTransaction(
+    Trans trans, {
+    List<Transline>? lines,
+    List<Map<String, dynamic>>? payments,
+    BuildContext? context,
+  }) async {
     _isLoading = true;
     notifyListeners();
     try {
+      if (inventoryItems.isEmpty) {
+        await fetchItemsForWarehouse();
+      }
+      if (taxes.isEmpty) {
+        await fetchTaxes();
+      }
+      if (vendors.isEmpty) {
+        await fetchPartners(TransType.purchaseOrder);
+      }
+      if (costCenters.isEmpty) {
+        await fetchBusinessContext();
+      }
+
       final vend = vendors.where((v) => v.name == trans.transText || v.code == trans.transText || v.id == trans.masterpartnerId).firstOrNull;
-      final partnerId = vend?.id.isNotEmpty == true ? vend!.id : (trans.masterpartnerId ?? '');
+      final partnerId = vend?.id.isNotEmpty == true
+          ? vend!.id
+          : ((trans.masterpartnerId?.isNotEmpty == true) ? trans.masterpartnerId! : (vendors.isNotEmpty ? vendors.first.id : ''));
 
       final wh = warehouses.where((w) => w.name == trans.masterwarehouseId || w.id == trans.masterwarehouseId).firstOrNull;
-      final warehouseId = wh?.id.isNotEmpty == true ? wh!.id : (_selectedWarehouse?.id ?? '');
-      final storeId = _selectedCostCenter?.id ?? '';
+      final warehouseId = wh?.id.isNotEmpty == true
+          ? wh!.id
+          : (_selectedWarehouse?.id ?? (warehouses.isNotEmpty ? warehouses.first.id : ''));
+      final storeId = _selectedCostCenter?.id ?? (costCenters.isNotEmpty ? costCenters.first.id : '');
 
-      final entryDateMs = (trans.transEntrydate != null && trans.transEntrydate! > 0)
-          ? trans.transEntrydate! * 1000
-          : DateTime.now().millisecondsSinceEpoch;
+      DateTime entryDt = DateTime.now();
+      if (trans.transEntrydate != null && trans.transEntrydate! > 0) {
+        final ms = trans.transEntrydate! > 100000000000
+            ? trans.transEntrydate!
+            : trans.transEntrydate! * 1000;
+        entryDt = DateTime.fromMillisecondsSinceEpoch(ms);
+      }
+      final entryDateIso = _formatIsoWithOffset(entryDt);
 
       final reqItems = <TransactionItemLine>[];
       if (lines != null) {
         for (int i = 0; i < lines.length; i++) {
           final l = lines[i];
-          final prod = inventoryItems.where((p) => p.name == l.translineKeterangan || p.sku == l.translineKeterangan).firstOrNull;
+          final uomId = await _resolveLineUomId(l);
+          final lineTaxId = _resolveLineTaxId(l);
+
           reqItems.add(TransactionItemLine(
-            itemUomId: prod?.id ?? '',
-            warehouseId: warehouseId,
-            storeId: storeId,
-            taxId: taxes.isNotEmpty ? taxes.first.id : null,
+            itemUomId: uomId,
+            taxId: lineTaxId,
             sequenceNumber: i + 1,
-            quantityDirection: 1, // Pembelian: arah qty +1
             quantity: l.translineQty ?? 1,
             unitPrice: l.translinePrice ?? 0,
             discountValue: l.translineTotaldiscvalue ?? 0,
@@ -1382,10 +1660,22 @@ class AppProvider extends ChangeNotifier {
         }
       }
 
-      final terminDays = trans.transTerminhari ?? 0;
-      final dueMs = terminDays > 0
-          ? entryDateMs + (terminDays * 24 * 60 * 60 * 1000)
-          : entryDateMs;
+      final sanitizedPayments = <Map<String, dynamic>>[];
+      if (payments != null && payments.isNotEmpty) {
+        if (paymentMethods.isEmpty) {
+          await fetchPaymentMethods();
+        }
+        final uuidReg = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+        for (final p in payments) {
+          final m = Map<String, dynamic>.from(p);
+          String accId = m['account_id']?.toString() ?? '';
+          if (!uuidReg.hasMatch(accId)) {
+            accId = paymentMethods.isNotEmpty ? paymentMethods.first.id : 'ae813d56-e1d8-11ef-976d-6c3be5bcbf18';
+            m['account_id'] = accId;
+          }
+          sanitizedPayments.add(m);
+        }
+      }
 
       final req = TransactionCreateRequest(
         header: TransactionHeader(
@@ -1393,30 +1683,38 @@ class AppProvider extends ChangeNotifier {
           partnerId: partnerId,
           warehouseId: warehouseId,
           storeId: storeId,
-          entryDateMs: entryDateMs,
-          dueDateMs: dueMs,
-          shippingDateMs: 0,
+          exchangeRate: 1,
+          entryDate: entryDateIso,
           notes: trans.transText ?? 'Pembelian',
-          taxIncluded: 'N',
+          taxIncluded: 'Y',
           terminId: trans.masterterminId,
-          terminDays: terminDays,
         ),
         items: reqItems,
-        payments: payments ?? const [],
+        payments: sanitizedPayments,
       );
 
+      debugPrint('[SavePurchase] Payload POST /trans: ${jsonEncode(req.toJson())}');
       final res = await _api().post('/trans', data: req.toJson());
       if (res.data['success'] == true) {
+        final d = res.data['data'] as Map<String, dynamic>?;
+        final transNumber = d?['trans_number']?.toString();
+        final transId = d?['trans_id']?.toString();
         if (context != null && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Transaksi Pembelian berhasil disimpan ke server!'),
-            backgroundColor: Color(0xFF28A745),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Transaksi Pembelian berhasil disimpan ke server! (${transNumber ?? ''})'),
+            backgroundColor: const Color(0xFF28A745),
             behavior: SnackBarBehavior.floating,
           ));
         }
+        return (success: true, message: 'Transaksi Pembelian berhasil disimpan ke server!', transNumber: transNumber, transId: transId);
+      } else {
+        final errMsg = res.data['error']?['message'] ?? res.data['message'] ?? 'Gagal menyimpan transaksi ke server';
+        return (success: false, message: errMsg.toString(), transNumber: null, transId: null);
       }
     } catch (e) {
-      debugPrint('Sync purchase transaction to server skipped (backend pending): ${_dioMsg(e)}');
+      final msg = _dioMsg(e);
+      debugPrint('Sync purchase transaction to server error: $msg');
+      return (success: false, message: msg, transNumber: null, transId: null);
     } finally {
       _isLoading = false;
       notifyListeners();

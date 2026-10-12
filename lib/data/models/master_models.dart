@@ -152,6 +152,7 @@ class ItemUomModel {
   final String id; // item_uom_id / masteritemuom_id
   final String? itemId;
   final String uomId;
+  final String? businessId;
   final String uomName;
   final String? uomCode;
   final double conversion;
@@ -161,23 +162,34 @@ class ItemUomModel {
     required this.id,
     this.itemId,
     required this.uomId,
+    this.businessId,
     required this.uomName,
     this.uomCode,
     this.conversion = 1.0,
     this.barcode,
   });
 
-  factory ItemUomModel.fromJson(Map<String, dynamic> j) => ItemUomModel(
-        id: j['item_uom_id']?.toString() ?? j['masteritemuom_id']?.toString() ?? '',
-        itemId: j['item_id']?.toString() ?? j['masteritem_id']?.toString(),
-        uomId: j['uom_id']?.toString() ?? j['masteruom_id']?.toString() ?? '',
-        uomName: j['uom_name']?.toString() ?? j['name']?.toString() ?? j['masteruom_name']?.toString() ?? 'PCS',
-        uomCode: j['uom_code']?.toString() ?? j['code']?.toString(),
-        conversion: (j['conversion'] as num?)?.toDouble() ??
-            (j['masteritemuom_konversi'] as num?)?.toDouble() ??
-            1.0,
-        barcode: j['barcode']?.toString() ?? j['masteritemuom_barcode']?.toString(),
-      );
+  factory ItemUomModel.fromJson(Map<String, dynamic> j) {
+    final code = j['uom_code']?.toString() ?? j['code']?.toString();
+    final name = j['uom_name']?.toString() ?? j['name']?.toString() ?? j['masteruom_name']?.toString() ?? code ?? 'PCS';
+    return ItemUomModel(
+      id: j['item_uom_id']?.toString() ??
+          j['masteritemuom_id']?.toString() ??
+          j['itemuom_id']?.toString() ??
+          j['id']?.toString() ??
+          '',
+      itemId: j['item_id']?.toString() ?? j['masteritem_id']?.toString(),
+      uomId: j['uom_id']?.toString() ?? j['masteruom_id']?.toString() ?? '',
+      businessId: j['business_id']?.toString(),
+      uomName: name,
+      uomCode: code,
+      conversion: (j['conversion_factor'] as num?)?.toDouble() ??
+          (j['conversion'] as num?)?.toDouble() ??
+          (j['masteritemuom_konversi'] as num?)?.toDouble() ??
+          1.0,
+      barcode: j['barcode']?.toString() ?? j['masteritemuom_barcode']?.toString(),
+    );
+  }
 }
 
 /// GET /taxes/trans
@@ -195,12 +207,21 @@ class TaxModel {
     this.rate = 0.0,
   });
 
-  factory TaxModel.fromJson(Map<String, dynamic> j) => TaxModel(
-        id: j['tax_id']?.toString() ?? j['id']?.toString() ?? '',
-        code: j['tax_code']?.toString() ?? j['code']?.toString() ?? '',
-        name: j['tax_name']?.toString() ?? j['name']?.toString() ?? '',
-        rate: (j['tax_rate'] as num?)?.toDouble() ?? (j['rate'] as num?)?.toDouble() ?? 0.0,
-      );
+  factory TaxModel.fromJson(Map<String, dynamic> j) {
+    final code = j['tax_code']?.toString() ?? j['code']?.toString() ?? '';
+    final rawName = j['tax_name']?.toString() ?? j['name']?.toString() ?? '';
+    final name = rawName.trim().isNotEmpty ? rawName : (code.isNotEmpty ? code : 'Pajak');
+    final rate = (j['tax_value'] as num?)?.toDouble() ??
+        (j['tax_rate'] as num?)?.toDouble() ??
+        (j['rate'] as num?)?.toDouble() ??
+        0.0;
+    return TaxModel(
+      id: j['tax_id']?.toString() ?? j['id']?.toString() ?? '',
+      code: code,
+      name: name,
+      rate: rate,
+    );
+  }
 }
 
 /// GET /trans/payment/method
@@ -210,19 +231,25 @@ class PaymentMethodModel {
   final String code;
   final String name;
   final String? accountId;
+  final double value;
+  final double secondaryValue;
 
   PaymentMethodModel({
     required this.id,
     required this.code,
     required this.name,
     this.accountId,
+    this.value = 0.0,
+    this.secondaryValue = 0.0,
   });
 
   factory PaymentMethodModel.fromJson(Map<String, dynamic> j) => PaymentMethodModel(
         id: j['payment_method_id']?.toString() ?? j['id']?.toString() ?? '',
         code: j['payment_method_code']?.toString() ?? j['code']?.toString() ?? '',
         name: j['payment_method_name']?.toString() ?? j['name']?.toString() ?? '',
-        accountId: j['account_id']?.toString(),
+        accountId: j['account_id']?.toString() ?? j['payment_method_id']?.toString() ?? j['id']?.toString(),
+        value: (j['value'] as num?)?.toDouble() ?? 0.0,
+        secondaryValue: (j['secondary_value'] as num?)?.toDouble() ?? 0.0,
       );
 }
 
@@ -231,22 +258,16 @@ class PaymentMethodModel {
 class TransactionCreateRequest {
   final TransactionHeader header;
   final List<TransactionItemLine> items;
-  final List<Map<String, dynamic>> promotions;
-  final List<Map<String, dynamic>> itemAttributes;
-  final List<Map<String, dynamic>> batchSerialEntries;
   final List<Map<String, dynamic>> payments;
-  final List<String> deletedLineIds;
+  final List<Map<String, dynamic>> batchSerialEntries;
   final int loyaltyPointInterval;
   final int loyaltyPointValue;
 
   TransactionCreateRequest({
     required this.header,
     required this.items,
-    this.promotions = const [],
-    this.itemAttributes = const [],
-    this.batchSerialEntries = const [],
     this.payments = const [],
-    this.deletedLineIds = const [],
+    this.batchSerialEntries = const [],
     this.loyaltyPointInterval = 0,
     this.loyaltyPointValue = 0,
   });
@@ -254,32 +275,26 @@ class TransactionCreateRequest {
   Map<String, dynamic> toJson() => {
     'transaction': header.toJson(),
     'items': items.map((i) => i.toJson()).toList(),
-    'promotions': promotions,
-    'item_attributes': itemAttributes,
-    'batch_serial_entries': batchSerialEntries,
     'payments': payments,
-    'deleted_line_ids': deletedLineIds,
+    'batch_serial_entries': batchSerialEntries,
     'loyalty_point_interval': loyaltyPointInterval,
     'loyalty_point_value': loyaltyPointValue,
   };
 }
 
 class TransactionHeader {
-  final String transactionType; // e.g. "13" untuk Sales Quotation, "14" SO, "16" SI, "2" PO, "4" PI
+  final String transactionType; // e.g. "16" untuk SI, "2" PO
   final String? sourceTransId;
   final String partnerId;
   final String warehouseId;
   final String storeId;
   final num exchangeRate;
-  final int entryDateMs; // unix timestamp dalam milidetik
-  final int dueDateMs;
-  final int shippingDateMs;
+  final String entryDate; // ISO 8601 string, misal "2026-10-12T11:20:39+07:00"
   final String notes;
   final num discountValue;
   final String taxIncluded; // "Y" or "N"
   final String discountIsPercentage; // "Y" or "N"
   final String? terminId;
-  final int? terminDays;
 
   TransactionHeader({
     required this.transactionType,
@@ -288,54 +303,42 @@ class TransactionHeader {
     required this.warehouseId,
     required this.storeId,
     this.exchangeRate = 1,
-    required this.entryDateMs,
-    required this.dueDateMs,
-    this.shippingDateMs = 0,
+    required this.entryDate,
     this.notes = '',
     this.discountValue = 0,
-    this.taxIncluded = 'N',
+    this.taxIncluded = 'Y',
     this.discountIsPercentage = 'N',
     this.terminId,
-    this.terminDays,
   });
 
   Map<String, dynamic> toJson() => {
-    'transaction_type': transactionType,
-    'source_trans_id': sourceTransId,
+    'trans_type': transactionType,
     'partner_id': partnerId,
     'warehouse_id': warehouseId,
     'store_id': storeId,
     'exchange_rate': exchangeRate,
-    'entry_date_ms': entryDateMs,
-    'due_date_ms': dueDateMs,
-    'shipping_date_ms': shippingDateMs,
-    'notes': notes,
-    'discount_value': discountValue,
+    'entry_date': entryDate,
     'tax_included': taxIncluded,
-    'discount_is_percentage': discountIsPercentage,
-    if (terminId != null && terminId!.isNotEmpty) 'mastertermin_id': terminId,
-    if (terminDays != null) 'trans_terminhari': terminDays,
+    'notes': notes,
+    if (sourceTransId != null && sourceTransId!.isNotEmpty) 'source_trans_id': sourceTransId,
+    if (discountValue > 0) 'discount_value': discountValue,
+    if (discountValue > 0) 'discount_is_percentage': discountIsPercentage,
+    if (terminId != null && terminId!.isNotEmpty) 'due_id': terminId,
   };
 }
 
 class TransactionItemLine {
   final String itemUomId;
-  final String warehouseId;
-  final String storeId;
   final String? taxId;
   final int sequenceNumber;
-  final int quantityDirection; // -1 untuk penjualan (mengurangi stok), 1 untuk pembelian (menambah stok)
   final num quantity;
   final num unitPrice;
   final num discountValue;
 
   TransactionItemLine({
     required this.itemUomId,
-    required this.warehouseId,
-    required this.storeId,
     this.taxId,
     required this.sequenceNumber,
-    required this.quantityDirection,
     required this.quantity,
     required this.unitPrice,
     this.discountValue = 0,
@@ -343,13 +346,10 @@ class TransactionItemLine {
 
   Map<String, dynamic> toJson() => {
     'item_uom_id': itemUomId,
-    'warehouse_id': warehouseId,
-    'store_id': storeId,
     if (taxId != null && taxId!.isNotEmpty) 'tax_id': taxId,
     'sequence_number': sequenceNumber,
-    'quantity_direction': quantityDirection,
-    'quantity': quantity,
+    'qty': quantity,
     'unit_price': unitPrice,
-    'discount_value': discountValue,
+    if (discountValue > 0) 'discount_value': discountValue,
   };
 }
