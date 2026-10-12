@@ -621,7 +621,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
               ),
               Divider(height: 1, color: _borderColor),
               ResizableTable(
-                headers: const ['Produk', 'Deskripsi', 'Qty', 'Unit', 'Harga Satuan', 'Diskon', 'Pajak', 'Jumlah', ''],
+                headers: ['Produk', 'Deskripsi', 'Qty', 'Unit', 'Harga Satuan', _discPersen ? 'Diskon (%)' : 'Diskon (Rp)', 'Pajak', 'Jumlah', ''],
                 initialFlexes: const [2.5, 2.0, 1.0, 1.0, 1.8, 1.0, 1.5, 1.8, 0.5],
                 minTableWidth: 1000,
                 rowCount: _items.length,
@@ -630,10 +630,10 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                           switch (c) {
                             case 0: return _tdProductSelect(item, r, isDark);
                             case 1: return _tdInput(item.deskCtrl, 'Deskripsi...', isDark);
-                            case 2: return _tdInput(item.qtyCtrl, '0', isDark, isNumber: true, onChanged: (_) => setState(() { item.updateJumlah(); }));
+                            case 2: return _tdInput(item.qtyCtrl, '0', isDark, isNumber: true, onChanged: (_) => setState(() { item.updateJumlah(_discPersen); }));
                             case 3: return _tdInput(item.unitCtrl, 'Pcs', isDark);
-                            case 4: return _tdInput(item.hargaCtrl, '0', isDark, isNumber: true, onChanged: (_) => setState(() { item.updateJumlah(); }));
-                            case 5: return _tdInput(item.discCtrl, '0', isDark, isNumber: true, onChanged: (_) => setState(() { item.updateJumlah(); }));
+                            case 4: return _tdInput(item.hargaCtrl, '0', isDark, isNumber: true, onChanged: (_) => setState(() { item.updateJumlah(_discPersen); }));
+                            case 5: return _tdInput(item.discCtrl, _discPersen ? '0%' : '0', isDark, isNumber: true, onChanged: (_) => setState(() { item.updateJumlah(_discPersen); }));
                             case 6: return Padding(
                                       padding: const EdgeInsets.all(6),
                                       child: DropdownButtonFormField<String>(
@@ -642,7 +642,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                                         isDense: true,
                                         style: GoogleFonts.ibmPlexSans(fontSize: 12, color: _textPrimary),
                                         decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8)),
-                                        onChanged: (v) => setState(() { item.pajak = v!; item.updateJumlah(); }),
+                                        onChanged: (v) => setState(() { item.pajak = v!; item.updateJumlah(_discPersen); }),
                                         items: const [
                                           DropdownMenuItem(value: 'PPN', child: Text('PPN')),
                                           DropdownMenuItem(value: '-', child: Text('-')),
@@ -905,7 +905,14 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
           _checkbox('Harga sudah termasuk PPN', _termasukPpn, (v) => setState(() => _termasukPpn = v!), isDark),
           _checkbox('Otomatis tambah baris baru', _tambahBaris, (v) => setState(() => _tambahBaris = v!), isDark),
           _checkbox('Cetak resi otomatis setelah simpan', _langsungCetak, (v) => setState(() => _langsungCetak = v!), isDark),
-          _checkbox('Terapkan diskon dalam mode Persen (%)', _discPersen, (v) => setState(() => _discPersen = v!), isDark),
+          _checkbox('Terapkan diskon dalam mode Persen (%)', _discPersen, (v) {
+            setState(() {
+              _discPersen = v!;
+              for (var it in _items) {
+                it.updateJumlah(_discPersen);
+              }
+            });
+          }, isDark),
         ],
       ),
     ]);
@@ -1050,14 +1057,19 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
       } else if (item.pajak == 'PPN' || item.pajak.contains('11')) {
         chosenTaxId = 'aeb5ec94-e1d8-11ef-976d-6c3be5bcbf18'; // PPN 11
       }
+      final qty = double.tryParse(item.qtyCtrl.text) ?? 0.0;
+      final harga = double.tryParse(item.hargaCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      final discInput = double.tryParse(item.discCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      final totalDisc = _discPersen ? (qty * harga * (discInput / 100)) : (discInput * qty);
+
       return Transline(
         masteritemuomId: item.itemUomId,
         mastertaxId: chosenTaxId,
         translineKeterangan: item.produkCtrl.text,
         translineKeterangan02: item.unitCtrl.text,
-        translineQty: double.tryParse(item.qtyCtrl.text) ?? 0.0,
-        translinePrice: double.tryParse(item.hargaCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
-        translineTotaldiscvalue: double.tryParse(item.discCtrl.text) ?? 0.0,
+        translineQty: qty,
+        translinePrice: harga,
+        translineTotaldiscvalue: totalDisc,
         translineNetvalue: item.jumlah,
       );
     }).toList();
@@ -1378,7 +1390,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                                       }
                                     }
                                     item.itemUomId = targetUomId ?? prod.itemUomId;
-                                    item.updateJumlah();
+                                    item.updateJumlah(_discPersen);
                                     if (mounted) setState(() {});
                                     Navigator.pop(ctx);
                                   },
@@ -1646,10 +1658,17 @@ class _LineItem {
   double jumlah = 0;
   String? itemUomId;
 
-  void updateJumlah() {
+  void updateJumlah([bool isPercent = false]) {
     final qty = double.tryParse(qtyCtrl.text) ?? 0;
     final harga = double.tryParse(hargaCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
-    final disc = double.tryParse(discCtrl.text) ?? 0;
-    jumlah = qty * harga * (1 - disc / 100);
+    final disc = double.tryParse(discCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+    if (isPercent) {
+      jumlah = (qty * harga) * (1 - (disc / 100));
+    } else {
+      // Mode Nominal Rupiah (Rp): potongan per unit (harga - disc) * qty
+      final netPrice = (harga - disc).clamp(0.0, double.infinity);
+      jumlah = qty * netPrice;
+    }
+    if (jumlah < 0) jumlah = 0;
   }
 }
