@@ -214,6 +214,40 @@ class DashboardScreen extends StatelessWidget {
 
           const SizedBox(width: 8),
 
+          // Ukuran Font
+          PopupMenuButton<double>(
+            tooltip: 'Ukuran Font',
+            icon: Icon(Icons.format_size, size: 20, color: _textSecondary),
+            splashRadius: 20,
+            initialValue: provider.fontScale,
+            onSelected: provider.setFontScale,
+            itemBuilder: (_) => [
+              PopupMenuItem<double>(
+                enabled: false,
+                height: 32,
+                child: Text('Ukuran Font', style: GoogleFonts.ibmPlexSans(fontSize: 11, fontWeight: FontWeight.w600, color: _textSecondary)),
+              ),
+              for (final opt in AppProvider.fontScaleOptions)
+                PopupMenuItem<double>(
+                  value: opt.$1,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        child: (provider.fontScale - opt.$1).abs() < 0.01
+                            ? Icon(Icons.check, size: 16, color: isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7))
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(opt.$2, style: GoogleFonts.ibmPlexSans(fontSize: 13 * opt.$1)),
+                      const SizedBox(width: 8),
+                      Text('${(opt.$1 * 100).round()}%', style: GoogleFonts.ibmPlexSans(fontSize: 11, color: _textSecondary)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+
           // Theme Toggle
           IconButton(
             icon: Icon(
@@ -278,15 +312,34 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildTabBar(BuildContext context, AppProvider provider, bool isDark) {
-    final Color _baseColor = isDark ? const Color(0xFF1A222A) : const Color(0xFFFFFFFF);
     final Color _canvasColor = isDark ? const Color(0xFF11171D) : const Color(0xFFF6F8FA);
     final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
-    final Color _textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
-    final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
-    final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+    final tabs = provider.openTabs;
+    final scale = provider.fontScale > 1 ? provider.fontScale : 1.0;
+
+    final children = <Widget>[];
+    for (var i = 0; i < tabs.length; i++) {
+      final tab = tabs[i];
+      final pinned = provider.isTabPinned(tab['id']!);
+      // Garis pemisah antara grup tab yang di-pin dan tab biasa
+      if (i > 0 && !pinned && provider.isTabPinned(tabs[i - 1]['id']!)) {
+        children.add(Container(
+          width: 1,
+          margin: const EdgeInsets.only(left: 2, right: 6, top: 10, bottom: 6),
+          color: _borderColor,
+        ));
+      }
+      children.add(_TabChip(
+        key: ValueKey('tab_${tab['id']}'),
+        tab: tab,
+        isActive: provider.activeModule == tab['id'],
+        isPinned: pinned,
+        isDark: isDark,
+      ));
+    }
 
     return Container(
-      height: 40,
+      height: 40 * scale,
       decoration: BoxDecoration(
         color: _canvasColor,
         border: Border(
@@ -296,52 +349,7 @@ class DashboardScreen extends StatelessWidget {
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: provider.openTabs.map((tab) {
-          final isActive = provider.activeModule == tab['id'];
-          final isClosable = tab['closable'] == 'true';
-
-          return GestureDetector(
-            onTap: () => provider.switchModule(tab['id']!),
-            child: Container(
-              margin: const EdgeInsets.only(right: 4, top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: isActive ? _baseColor : Colors.transparent,
-                border: Border(
-                  top: BorderSide(color: isActive ? _borderColor : Colors.transparent),
-                  left: BorderSide(color: isActive ? _borderColor : Colors.transparent),
-                  right: BorderSide(color: isActive ? _borderColor : Colors.transparent),
-                  // Bottom border is handled by the parent container or active state
-                  bottom: BorderSide(color: isActive ? _baseColor : Colors.transparent, width: 2),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    tab['name']!,
-                    style: GoogleFonts.ibmPlexSans(
-                      fontSize: 12,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                      color: isActive ? _textPrimary : _textSecondary,
-                    ),
-                  ),
-                  if (isClosable) ...[
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => provider.closeTab(tab['id']!),
-                      child: Icon(
-                        Icons.close, 
-                        size: 14, 
-                        color: isActive ? _textPrimary : _textSecondary
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+        children: children,
       ),
     );
   }
@@ -378,5 +386,197 @@ class DashboardScreen extends StatelessWidget {
       default:
         return const OverviewModule();
     }
+  }
+}
+
+/// Satu tab di tab bar atas. Mendukung pin/unpin (tombol saat hover/aktif,
+/// atau klik kanan untuk menu konteks) dan tombol tutup.
+class _TabChip extends StatefulWidget {
+  final Map<String, String> tab;
+  final bool isActive;
+  final bool isPinned;
+  final bool isDark;
+
+  const _TabChip({
+    super.key,
+    required this.tab,
+    required this.isActive,
+    required this.isPinned,
+    required this.isDark,
+  });
+
+  @override
+  State<_TabChip> createState() => _TabChipState();
+}
+
+class _TabChipState extends State<_TabChip> {
+  bool _hover = false;
+
+  Future<void> _showContextMenu(Offset globalPos) async {
+    final provider = context.read<AppProvider>();
+    final id = widget.tab['id']!;
+    final closable = widget.tab['closable'] == 'true' && !widget.isPinned;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final result = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(globalPos & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        PopupMenuItem(
+          value: 'pin',
+          height: 36,
+          child: Row(children: [
+            Icon(widget.isPinned ? Icons.push_pin : Icons.push_pin_outlined, size: 16),
+            const SizedBox(width: 10),
+            Text(widget.isPinned ? 'Lepas Pin Tab' : 'Pin Tab', style: GoogleFonts.ibmPlexSans(fontSize: 13)),
+          ]),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'close',
+          height: 36,
+          enabled: closable,
+          child: Text('Tutup', style: GoogleFonts.ibmPlexSans(fontSize: 13)),
+        ),
+        PopupMenuItem(
+          value: 'others',
+          height: 36,
+          child: Text('Tutup Tab Lain', style: GoogleFonts.ibmPlexSans(fontSize: 13)),
+        ),
+        PopupMenuItem(
+          value: 'right',
+          height: 36,
+          child: Text('Tutup Tab di Kanan', style: GoogleFonts.ibmPlexSans(fontSize: 13)),
+        ),
+      ],
+    );
+    switch (result) {
+      case 'pin':
+        provider.togglePinTab(id);
+        break;
+      case 'close':
+        provider.closeTab(id);
+        break;
+      case 'others':
+        provider.closeOtherTabs(id);
+        break;
+      case 'right':
+        provider.closeTabsToRight(id);
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final isActive = widget.isActive;
+    final isPinned = widget.isPinned;
+    final provider = context.read<AppProvider>();
+    final id = widget.tab['id']!;
+    final isClosable = widget.tab['closable'] == 'true' && !isPinned;
+
+    final Color baseColor = isDark ? const Color(0xFF1A222A) : const Color(0xFFFFFFFF);
+    final Color borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
+    final Color textPrimary = isDark ? const Color(0xFFF2F5F7) : const Color(0xFF18232D);
+    final Color textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
+    final Color primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
+    final Color hoverColor = isDark ? const Color(0xFF1F2A33) : const Color(0xFFEDF1F4);
+    final fg = isActive ? textPrimary : textSecondary;
+
+    // Tombol pin terlihat saat tab di-pin, aktif, atau sedang di-hover
+    final showPinBtn = isPinned || isActive || _hover;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: () => provider.switchModule(id),
+        onSecondaryTapDown: (d) => _showContextMenu(d.globalPosition),
+        onLongPressStart: (d) => _showContextMenu(d.globalPosition),
+        // Klik tengah (mouse wheel) untuk tutup, seperti browser
+        onTertiaryTapUp: isClosable ? (_) => provider.closeTab(id) : null,
+        child: Container(
+          margin: const EdgeInsets.only(right: 4, top: 4),
+          padding: EdgeInsets.only(left: isPinned ? 10 : 14, right: 8),
+          decoration: BoxDecoration(
+            color: isActive ? baseColor : (_hover ? hoverColor : Colors.transparent),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+            border: Border(
+              top: BorderSide(color: isActive ? (isPinned ? primaryColor : borderColor) : Colors.transparent, width: isActive && isPinned ? 2 : 1),
+              left: BorderSide(color: isActive ? borderColor : Colors.transparent),
+              right: BorderSide(color: isActive ? borderColor : Colors.transparent),
+              bottom: BorderSide(color: isActive ? baseColor : Colors.transparent, width: 2),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isPinned) ...[
+                // Klik ikon pin untuk melepas pin
+                _miniButton(
+                  icon: Icons.push_pin,
+                  color: primaryColor,
+                  tooltip: 'Lepas pin',
+                  onTap: () => provider.togglePinTab(id),
+                ),
+                const SizedBox(width: 2),
+              ],
+              Text(
+                widget.tab['name']!,
+                style: GoogleFonts.ibmPlexSans(
+                  fontSize: 12,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                  color: fg,
+                ),
+              ),
+              if (!isPinned) ...[
+                const SizedBox(width: 6),
+                // Tombol pin (muncul saat hover / tab aktif)
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 120),
+                  opacity: showPinBtn ? 1 : 0,
+                  child: IgnorePointer(
+                    ignoring: !showPinBtn,
+                    child: _miniButton(
+                      icon: Icons.push_pin_outlined,
+                      color: fg,
+                      tooltip: 'Pin tab',
+                      onTap: () => provider.togglePinTab(id),
+                    ),
+                  ),
+                ),
+                if (isClosable)
+                  _miniButton(
+                    icon: Icons.close,
+                    color: fg,
+                    tooltip: 'Tutup tab',
+                    onTap: () => provider.closeTab(id),
+                  ),
+              ] else
+                const SizedBox(width: 6),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 500),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(3),
+          child: Icon(icon, size: 14, color: color),
+        ),
+      ),
+    );
   }
 }

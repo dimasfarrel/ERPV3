@@ -649,6 +649,7 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
               ),
               Divider(height: 1, color: _borderColor),
               ResizableTable(
+                storageKey: 'sales_form_lines',
                 headers: ['Produk', 'Deskripsi', 'Qty', 'Unit', 'Harga Satuan', _discPersen ? 'Diskon (%)' : 'Diskon (Rp)', 'Pajak', 'Jumlah', ''],
                 initialFlexes: const [2.5, 2.0, 1.0, 1.0, 1.8, 1.0, 1.5, 1.8, 0.5],
                 minTableWidth: 1000,

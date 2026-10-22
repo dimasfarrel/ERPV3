@@ -5,6 +5,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/models/app_models.dart';
 import '../../data/providers/app_provider.dart';
 import '../../widgets/common/erp_card.dart';
+import '../../widgets/common/erp_data_grid.dart';
 import '../../widgets/common/status_badge.dart';
 import '../../widgets/transaction/transaction_payment_dialog.dart';
 import '../../widgets/transaction/invoice_print_dialog.dart';
@@ -229,7 +230,6 @@ class _PurchasingModuleState extends State<PurchasingModule> {
     final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
     final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
     final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
-    final Color _headerColor = isDark ? const Color(0xFF25303A) : const Color(0xFFEDF1F4);
 
     return ErpCard(
       padding: EdgeInsets.zero,
@@ -241,108 +241,133 @@ class _PurchasingModuleState extends State<PurchasingModule> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('DAFTAR PESANAN PEMBELIAN (PURCHASE ORDER)', style: GoogleFonts.ibmPlexSans(fontSize: 14, fontWeight: FontWeight.w700, color: _textPrimary)),
+                Flexible(child: Text('DAFTAR PESANAN PEMBELIAN (PURCHASE ORDER)', style: GoogleFonts.ibmPlexSans(fontSize: 14, fontWeight: FontWeight.w700, color: _textPrimary))),
                 Text('${pos.length} Dokumen', style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textSecondary)),
               ],
             ),
           ),
           Divider(height: 1, color: _borderColor),
-          LayoutBuilder(
-            builder: (context, constraints) => pos.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(
-                      child: Text('Belum ada riwayat dokumen PO.', style: TextStyle(color: Colors.grey)),
-                    ),
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                      child: DataTable(
-              headingRowColor: WidgetStateProperty.all(_headerColor),
-              dividerThickness: 1,
-              headingTextStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, color: _textPrimary, fontSize: 13),
-              dataTextStyle: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary),
-              columns: const [
-                DataColumn(label: Text('No. PO')),
-                DataColumn(label: Text('Tanggal')),
-                DataColumn(label: Text('Pemasok / Vendor')),
-                DataColumn(label: Text('Gudang Tujuan')),
-                DataColumn(label: Text('Total Nilai PO')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Aksi')),
-              ],
-              rows: pos.map((po) => DataRow(cells: [
-                DataCell(Text(po.id, style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w600, color: _primaryColor))),
-                DataCell(Text(Formatters.dateShort(po.date))),
-                DataCell(Text(po.vendor, style: const TextStyle(fontWeight: FontWeight.w500))),
-                DataCell(Text(po.warehouse, style: const TextStyle(fontSize: 12))),
-                DataCell(Text(Formatters.currency(po.amount), style: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600))),
-                DataCell(StatusBadge(label: po.status, type: po.statusBadge)),
-                DataCell(Row(children: [
-                  IconButton(
-                    icon: const Icon(Icons.visibility_outlined, size: 16),
-                    onPressed: () => context.read<AppProvider>().openNewForm('purchasing', customTitle: 'Detail PO ${po.id}', targetId: po.id),
-                    tooltip: 'Lihat Detail',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    onPressed: () => context.read<AppProvider>().openNewForm('purchasing', customTitle: 'Edit PO ${po.id}', targetId: po.id),
-                    tooltip: 'Edit',
-                  ),
-                  if (po.status != 'Lunas' && po.status != 'Draft') ...[
-                    IconButton(
-                      icon: const Icon(Icons.payment_rounded, size: 16, color: Color(0xFF28A745)),
-                      onPressed: () async {
-                        final result = await TransactionPaymentDialog.show(
-                          context,
-                          transactionId: po.id,
-                          totalAmount: po.amount,
-                          partnerName: po.vendor,
-                          isPurchase: true,
-                        );
-                        if (result != null && context.mounted) {
-                          final updatedPo = po.copyWith(
-                            status: 'Lunas',
-                            paymentMethod: result.paymentMethod,
-                            paidAmount: result.paidAmount,
-                            paymentDate: DateTime.now(),
-                          );
-                          final provider = context.read<AppProvider>();
-                          provider.addPurchaseOrder(updatedPo);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('Pelunasan PO ${po.id} berhasil dicatat (Lunas).'),
-                            backgroundColor: const Color(0xFF28A745),
-                            behavior: SnackBarBehavior.floating,
-                          ));
-                        }
-                      },
-                      tooltip: 'Bayar / Pelunasan PO',
-                    ),
-                  ],
-                  IconButton(
-                    icon: const Icon(Icons.print_outlined, size: 16),
-                    onPressed: () {
-                      InvoicePrintDialog.showFromPurchase(context, po: po);
-                    },
-                    tooltip: 'Cetak PO',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    onPressed: () {
-                      context.read<AppProvider>().deletePurchaseOrder(po.id);
-                    },
-                    tooltip: 'Hapus',
-                  ),
-                ])),
-              ])).toList(),
-                ),
+          ErpDataGrid<PurchaseOrder>(
+            storageKey: 'purchasing_po',
+            rows: pos,
+            emptyText: 'Belum ada riwayat dokumen PO.',
+            minTableWidth: 1000,
+            columns: [
+              ErpGridColumn(
+                label: 'No. PO',
+                flex: 1.4,
+                filter: ErpFilterKind.text,
+                value: (po) => po.id,
+                cell: (_, po) => Text(po.id, style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w600, color: _primaryColor)),
               ),
-            ),
+              ErpGridColumn(
+                label: 'Tanggal',
+                flex: 1.0,
+                filter: ErpFilterKind.date,
+                value: (po) => po.date,
+                cell: (_, po) => Text(Formatters.dateShort(po.date)),
+              ),
+              ErpGridColumn(
+                label: 'Pemasok / Vendor',
+                flex: 1.8,
+                filter: ErpFilterKind.text,
+                value: (po) => po.vendor,
+                cell: (_, po) => Text(po.vendor, style: const TextStyle(fontWeight: FontWeight.w500)),
+              ),
+              ErpGridColumn(
+                label: 'Gudang Tujuan',
+                flex: 1.4,
+                filter: ErpFilterKind.select,
+                value: (po) => po.warehouse,
+                cell: (_, po) => Text(po.warehouse, style: const TextStyle(fontSize: 12)),
+              ),
+              ErpGridColumn(
+                label: 'Total Nilai PO',
+                flex: 1.3,
+                filter: ErpFilterKind.number,
+                alignRight: true,
+                value: (po) => po.amount,
+                cell: (_, po) => Text(Formatters.currency(po.amount), style: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600)),
+              ),
+              ErpGridColumn(
+                label: 'Status',
+                flex: 1.2,
+                filter: ErpFilterKind.select,
+                value: (po) => po.status,
+                cell: (_, po) => StatusBadge(label: po.status, type: po.statusBadge),
+              ),
+              ErpGridColumn(
+                label: 'Aksi',
+                flex: 1.9,
+                sortable: false,
+                cell: (context, po) => _poActions(context, po),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _poActions(BuildContext context, PurchaseOrder po) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          icon: const Icon(Icons.visibility_outlined, size: 16),
+          onPressed: () => context.read<AppProvider>().openNewForm('purchasing', customTitle: 'Detail PO ${po.id}', targetId: po.id),
+          tooltip: 'Lihat Detail',
+        ),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, size: 16),
+          onPressed: () => context.read<AppProvider>().openNewForm('purchasing', customTitle: 'Edit PO ${po.id}', targetId: po.id),
+          tooltip: 'Edit',
+        ),
+        if (po.status != 'Lunas' && po.status != 'Draft') ...[
+          IconButton(
+            icon: const Icon(Icons.payment_rounded, size: 16, color: Color(0xFF28A745)),
+            onPressed: () async {
+              final result = await TransactionPaymentDialog.show(
+                context,
+                transactionId: po.id,
+                totalAmount: po.amount,
+                partnerName: po.vendor,
+                isPurchase: true,
+              );
+              if (result != null && context.mounted) {
+                final updatedPo = po.copyWith(
+                  status: 'Lunas',
+                  paymentMethod: result.paymentMethod,
+                  paidAmount: result.paidAmount,
+                  paymentDate: DateTime.now(),
+                );
+                final provider = context.read<AppProvider>();
+                provider.addPurchaseOrder(updatedPo);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Pelunasan PO ${po.id} berhasil dicatat (Lunas).'),
+                  backgroundColor: const Color(0xFF28A745),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              }
+            },
+            tooltip: 'Bayar / Pelunasan PO',
+          ),
+        ],
+        IconButton(
+          icon: const Icon(Icons.print_outlined, size: 16),
+          onPressed: () {
+            InvoicePrintDialog.showFromPurchase(context, po: po);
+          },
+          tooltip: 'Cetak PO',
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+          onPressed: () {
+            context.read<AppProvider>().deletePurchaseOrder(po.id);
+          },
+          tooltip: 'Hapus',
+        ),
+      ]),
     );
   }
 
@@ -351,11 +376,13 @@ class _PurchasingModuleState extends State<PurchasingModule> {
     final Color _textSecondary = isDark ? const Color(0xFFABB8C2) : const Color(0xFF53616D);
     final Color _primaryColor = isDark ? const Color(0xFF78B7FF) : const Color(0xFF1259A7);
     final Color _borderColor = isDark ? const Color(0xFF35434E) : const Color(0xFFD9E1E6);
-    final Color _headerColor = isDark ? const Color(0xFF25303A) : const Color(0xFFEDF1F4);
-    
+
     final Color _successColor = isDark ? const Color(0xFF28A745) : const Color(0xFF087A65);
     final Color _warningColor = isDark ? const Color(0xFFF0BD63) : const Color(0xFF9A6200);
     final Color _dangerColor = isDark ? const Color(0xFFE55353) : const Color(0xFFB3363B);
+
+    Color toneOf(AccountsPayable ap) =>
+        ap.status == 'Aman' ? _successColor : ap.status == 'Segera' ? _warningColor : _dangerColor;
 
     return ErpCard(
       padding: EdgeInsets.zero,
@@ -367,13 +394,15 @@ class _PurchasingModuleState extends State<PurchasingModule> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('MONITORING AGING HUTANG (ACCOUNTS PAYABLE)', style: GoogleFonts.ibmPlexSans(fontSize: 14, fontWeight: FontWeight.w700, color: _textPrimary)),
-                    const SizedBox(height: 4),
-                    Text('Analisis umur hutang usaha berdasarkan tanggal jatuh tempo invoice vendor', style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textSecondary)),
-                  ],
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('MONITORING AGING HUTANG (ACCOUNTS PAYABLE)', style: GoogleFonts.ibmPlexSans(fontSize: 14, fontWeight: FontWeight.w700, color: _textPrimary)),
+                      const SizedBox(height: 4),
+                      Text('Analisis umur hutang usaha berdasarkan tanggal jatuh tempo invoice vendor', style: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textSecondary)),
+                    ],
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -384,87 +413,101 @@ class _PurchasingModuleState extends State<PurchasingModule> {
             ),
           ),
           Divider(height: 1, color: _borderColor),
-          LayoutBuilder(
-            builder: (context, constraints) => provider.apAging.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(
-                      child: Text('Belum ada data hutang usaha (AP).', style: TextStyle(color: Colors.grey)),
-                    ),
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                      child: DataTable(
-              headingRowColor: WidgetStateProperty.all(_headerColor),
-              dividerThickness: 1,
-              headingTextStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, color: _textPrimary, fontSize: 13),
-              dataTextStyle: GoogleFonts.ibmPlexSans(fontSize: 13, color: _textPrimary),
-              columns: const [
-                DataColumn(label: Text('No. Ref Invoice')),
-                DataColumn(label: Text('Nama Vendor')),
-                DataColumn(label: Text('Tgl Jatuh Tempo')),
-                DataColumn(label: Text('Total Tagihan')),
-                DataColumn(label: Text('Sisa Hutang')),
-                DataColumn(label: Text('Kelompok Umur (Bucket)')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Aksi Pelunasan')),
-              ],
-              rows: provider.apAging.map((ap) {
-                final isAman = ap.status == 'Aman';
-                final isWarning = ap.status == 'Segera';
-
-                return DataRow(cells: [
-                  DataCell(Text(ap.id, style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w600, color: _primaryColor))),
-                  DataCell(Text(ap.supplier, style: const TextStyle(fontWeight: FontWeight.w500))),
-                  DataCell(Text(Formatters.dateShort(ap.dueDate))),
-                  DataCell(Text(Formatters.currency(ap.totalAmount), style: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w500))),
-                  DataCell(Text(Formatters.currency(ap.remainingAmount), style: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, color: _dangerColor))),
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: (isAman ? _successColor : isWarning ? _warningColor : _dangerColor).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        ap.agingBucket,
-                        style: GoogleFonts.ibmPlexSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isAman ? _successColor : isWarning ? _warningColor : _dangerColor,
-                        ),
-                      ),
-                    ),
+          ErpDataGrid<AccountsPayable>(
+            storageKey: 'purchasing_ap_aging',
+            rows: provider.apAging,
+            emptyText: 'Belum ada data hutang usaha (AP).',
+            minTableWidth: 1100,
+            columns: [
+              ErpGridColumn(
+                label: 'No. Ref Invoice',
+                flex: 1.3,
+                filter: ErpFilterKind.text,
+                value: (ap) => ap.id,
+                cell: (_, ap) => Text(ap.id, style: GoogleFonts.ibmPlexSans(fontSize: 13, fontWeight: FontWeight.w600, color: _primaryColor)),
+              ),
+              ErpGridColumn(
+                label: 'Nama Vendor',
+                flex: 1.7,
+                filter: ErpFilterKind.text,
+                value: (ap) => ap.supplier,
+                cell: (_, ap) => Text(ap.supplier, style: const TextStyle(fontWeight: FontWeight.w500)),
+              ),
+              ErpGridColumn(
+                label: 'Tgl Jatuh Tempo',
+                flex: 1.1,
+                filter: ErpFilterKind.date,
+                value: (ap) => ap.dueDate,
+                cell: (_, ap) => Text(Formatters.dateShort(ap.dueDate)),
+              ),
+              ErpGridColumn(
+                label: 'Total Tagihan',
+                flex: 1.3,
+                filter: ErpFilterKind.number,
+                alignRight: true,
+                value: (ap) => ap.totalAmount,
+                cell: (_, ap) => Text(Formatters.currency(ap.totalAmount), style: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w500)),
+              ),
+              ErpGridColumn(
+                label: 'Sisa Hutang',
+                flex: 1.3,
+                filter: ErpFilterKind.number,
+                alignRight: true,
+                value: (ap) => ap.remainingAmount,
+                cell: (_, ap) => Text(Formatters.currency(ap.remainingAmount), style: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, color: _dangerColor)),
+              ),
+              ErpGridColumn(
+                label: 'Kelompok Umur (Bucket)',
+                flex: 1.4,
+                filter: ErpFilterKind.select,
+                value: (ap) => ap.agingBucket,
+                cell: (_, ap) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: toneOf(ap).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  DataCell(StatusBadge(label: ap.status, type: isAman ? 'success' : isWarning ? 'warning' : 'danger')),
-                  DataCell(
-                    ap.status == 'Lunas'
-                        ? Text('✓ Terbayar', style: GoogleFonts.ibmPlexSans(color: _successColor, fontWeight: FontWeight.w600))
-                        : ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                ap.remainingAmount = 0;
-                                ap.status = 'Lunas';
-                              });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                              textStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, fontSize: 12),
-                            ),
-                            child: const Text('Bayar'),
-                          ),
+                  child: Text(
+                    ap.agingBucket,
+                    style: GoogleFonts.ibmPlexSans(fontSize: 12, fontWeight: FontWeight.w600, color: toneOf(ap)),
                   ),
-                ]);
-              }).toList(),
                 ),
               ),
-            ),
+              ErpGridColumn(
+                label: 'Status',
+                flex: 1.1,
+                filter: ErpFilterKind.select,
+                value: (ap) => ap.status,
+                cell: (_, ap) => StatusBadge(
+                  label: ap.status,
+                  type: ap.status == 'Aman' ? 'success' : ap.status == 'Segera' ? 'warning' : 'danger',
+                ),
+              ),
+              ErpGridColumn(
+                label: 'Aksi Pelunasan',
+                flex: 1.1,
+                sortable: false,
+                cell: (_, ap) => ap.status == 'Lunas'
+                    ? Text('✓ Terbayar', style: GoogleFonts.ibmPlexSans(color: _successColor, fontWeight: FontWeight.w600))
+                    : ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            ap.remainingAmount = 0;
+                            ap.status = 'Lunas';
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          textStyle: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600, fontSize: 12),
+                        ),
+                        child: const Text('Bayar'),
+                      ),
+              ),
+            ],
           ),
         ],
       ),

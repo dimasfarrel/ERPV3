@@ -24,13 +24,17 @@ class StatusBadge extends StatelessWidget {
             decoration: BoxDecoration(color: colors.$1, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: colors.$1,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: colors.$1,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ],

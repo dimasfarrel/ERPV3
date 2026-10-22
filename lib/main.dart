@@ -31,6 +31,14 @@ class ErpMalangApp extends StatelessWidget {
       title: 'iSoft ERP - System Core',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      // Ukuran font global dari pengaturan (Kecil/Normal/Besar/Sangat Besar)
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: TextScaler.linear(provider.fontScale)),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const AppRouter(),
     );
   }

@@ -439,6 +439,54 @@ class _ThemeTabState extends State<_ThemeTab> {
               ),
             ],
           ),
+
+          const SizedBox(height: 40),
+          Text('Ukuran Font Aplikasi', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+          const SizedBox(height: 6),
+          Text('Sesuaikan kenyamanan membaca dengan memperbesar atau memperkecil teks aplikasi', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: AppProvider.fontScaleOptions.map((opt) {
+              final isCur = (provider.fontScale - opt.$1).abs() < 0.01;
+              return GestureDetector(
+                onTap: () => context.read<AppProvider>().setFontScale(opt.$1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: isCur ? AppColors.primarySurface : AppColors.bgCard,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isCur ? AppColors.primary : AppColors.borderLight,
+                      width: isCur ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.format_size, size: 18 * opt.$1, color: isCur ? AppColors.primary : AppColors.textMuted),
+                      const SizedBox(width: 10),
+                      Text(
+                        opt.$2,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: isCur ? FontWeight.w700 : FontWeight.w500,
+                          color: isCur ? AppColors.primary : AppColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '(${(opt.$1 * 100).round()}%)',
+                        style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
           
           const SizedBox(height: 48),
           Row(
@@ -449,6 +497,7 @@ class _ThemeTabState extends State<_ThemeTab> {
                   final p = context.read<AppProvider>();
                   p.setThemeMode(false);
                   p.setPrimaryColor(const Color(0xFF4F46E5));
+                  p.setFontScale(1.0);
                 },
                 child: const Text('Kembalikan Default'),
               ),

@@ -24,6 +24,15 @@ class AppProvider extends ChangeNotifier {
   bool _isDarkMode = false;
   Color _primaryColor = const Color(0xFF4F46E5);
 
+  // Ukuran font global (dipakai sebagai TextScaler di MaterialApp)
+  static const List<(double, String)> fontScaleOptions = [
+    (0.85, 'Kecil'),
+    (1.0, 'Normal'),
+    (1.15, 'Besar'),
+    (1.3, 'Sangat Besar'),
+  ];
+  double _fontScale = 1.0;
+
   // Auth & Database Connection State
   bool _isLoggedIn = false;
   bool _isUsingLiveDatabase = false;
@@ -48,6 +57,8 @@ class AppProvider extends ChangeNotifier {
     {'id': 'manufacturing', 'name': 'Manufaktur & BOM'},
     {'id': 'accounting', 'name': 'Keuangan & Akuntansi'},
   ];
+  // Id tab yang di-pin (selalu di kiri, tidak bisa ditutup sebelum di-unpin)
+  final Set<String> _pinnedTabs = {};
 
   // Getters
   AppView get currentView => _currentView;
@@ -62,6 +73,9 @@ class AppProvider extends ChangeNotifier {
   CostCenter? get selectedCostCenter => _selectedCostCenter;
   WarehouseEntity? get selectedWarehouse => _selectedWarehouse;
   List<Map<String, String>> get openTabs => _openTabs;
+  Set<String> get pinnedTabs => _pinnedTabs;
+  bool isTabPinned(String id) => _pinnedTabs.contains(id);
+  double get fontScale => _fontScale;
   bool get isDarkMode => _isDarkMode;
   Color get primaryColor => _primaryColor;
   AppEdition get edition => _edition;
@@ -141,6 +155,7 @@ class AppProvider extends ChangeNotifier {
 
   AppProvider() {
     _loadLocalTransactions();
+    _loadLocalUiPrefs();
   }
 
   // ==================== Mode & Edition Controls ====================
@@ -195,11 +210,108 @@ class AppProvider extends ChangeNotifier {
   }
 
   void closeTab(String moduleId) {
+    // Tab yang di-pin tidak ikut tertutup (harus di-unpin dulu)
+    if (_pinnedTabs.contains(moduleId)) {
+      _activeModule = moduleId;
+      notifyListeners();
+      return;
+    }
     _openTabs.removeWhere((t) => t['id'] == moduleId);
     if (_activeModule == moduleId) {
       _activeModule = _openTabs.isNotEmpty ? _openTabs.last['id']! : 'overview';
     }
     notifyListeners();
+  }
+
+  bool _isTabClosable(Map<String, String> t) =>
+      t['closable'] == 'true' && !_pinnedTabs.contains(t['id']);
+
+  /// Tutup semua tab (yang bisa ditutup & tidak di-pin) kecuali [keepId].
+  void closeOtherTabs(String keepId) {
+    _openTabs.removeWhere((t) => t['id'] != keepId && _isTabClosable(t));
+    _activeModule = keepId;
+    notifyListeners();
+  }
+
+  /// Tutup semua tab di sebelah kanan [id] (kecuali yang di-pin).
+  void closeTabsToRight(String id) {
+    final idx = _openTabs.indexWhere((t) => t['id'] == id);
+    if (idx == -1) return;
+    final toRemove = _openTabs.sublist(idx + 1).where(_isTabClosable).map((t) => t['id']).toSet();
+    _openTabs.removeWhere((t) => toRemove.contains(t['id']));
+    if (toRemove.contains(_activeModule)) _activeModule = id;
+    notifyListeners();
+  }
+
+  /// Pin / unpin tab. Tab yang di-pin dipindah ke grup paling kiri.
+  void togglePinTab(String id) {
+    if (_pinnedTabs.contains(id)) {
+      _pinnedTabs.remove(id);
+    } else {
+      _pinnedTabs.add(id);
+    }
+    _sortTabsByPin();
+    _savePinnedTabs();
+    notifyListeners();
+  }
+
+  void _sortTabsByPin() {
+    final pinned = _openTabs.where((t) => _pinnedTabs.contains(t['id'])).toList();
+    final others = _openTabs.where((t) => !_pinnedTabs.contains(t['id'])).toList();
+    _openTabs = [...pinned, ...others];
+  }
+
+  void setFontScale(double scale) {
+    _fontScale = scale.clamp(0.75, 1.5);
+    _saveLocalUiPrefs();
+    notifyListeners();
+  }
+
+  // ---- Preferensi UI lokal (khusus tampilan, key `ui_*`, tidak menyentuh kredensial) ----
+  static const _kFontScaleKey = 'ui_font_scale';
+  static const _kPinnedTabsKey = 'ui_pinned_tabs';
+
+  Future<void> _loadLocalUiPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fs = prefs.getDouble(_kFontScaleKey);
+      if (fs != null) _fontScale = fs.clamp(0.75, 1.5);
+      final raw = prefs.getString(_kPinnedTabsKey);
+      if (raw != null && raw.isNotEmpty) {
+        final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+        for (final t in list) {
+          final id = t['id'] as String?;
+          if (id == null) continue;
+          _pinnedTabs.add(id);
+          if (!_openTabs.any((o) => o['id'] == id)) {
+            _openTabs.add({
+              'id': id,
+              'name': (t['name'] as String?) ?? id,
+              if (t['closable'] == 'true') 'closable': 'true',
+            });
+          }
+        }
+        _sortTabsByPin();
+      }
+      notifyListeners();
+    } catch (_) {
+      // Abaikan: preferensi tampilan bersifat opsional
+    }
+  }
+
+  Future<void> _saveLocalUiPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_kFontScaleKey, _fontScale);
+    } catch (_) {}
+  }
+
+  Future<void> _savePinnedTabs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pinned = _openTabs.where((t) => _pinnedTabs.contains(t['id'])).toList();
+      await prefs.setString(_kPinnedTabsKey, jsonEncode(pinned));
+    } catch (_) {}
   }
 
   void toggleSidebar() {
@@ -227,8 +339,10 @@ class AppProvider extends ChangeNotifier {
         final data = response.data['data'] ?? {};
         final dark = data['darkMode'] as bool?;
         final accent = data['accentColor'] as int?;
+        final fs = (data['fontScale'] as num?)?.toDouble();
         if (dark != null) setThemeMode(dark);
         if (accent != null) setPrimaryColor(Color(accent));
+        if (fs != null) setFontScale(fs);
       }
     } catch (e) {
       _showError(null, 'Failed to load UI settings: ${_dioMsg(e)}');
@@ -241,6 +355,7 @@ class AppProvider extends ChangeNotifier {
       await _api().post('/ui-settings', data: {
         'darkMode': _isDarkMode,
         'accentColor': _primaryColor.value,
+        'fontScale': _fontScale,
       });
     } catch (_) {
       // Silently ignore save errors to avoid disrupting UI
